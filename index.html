@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Star Clicker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .click-active { transform: scale(0.95); transition: transform 0.05s ease; }
+        .click-idle { transform: scale(1); transition: transform 0.2s ease; }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-50px) scale(1.5); }
+        }
+        .particle {
+            position: absolute; pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            color: #fbbf24; font-weight: bold; font-size: 1.5rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans h-screen overflow-hidden flex flex-col md:flex-row select-none">
+
+    <div class="flex-1 flex flex-col items-center justify-center p-8 bg-slate-800 relative border-b md:border-b-0 md:border-r border-slate-700">
+        <h1 class="text-4xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500">
+            スタークリッカー
+        </h1>
+        
+        <div class="text-center mb-8">
+            <div class="text-6xl font-bold text-yellow-400" id="scoreDisplay">0</div>
+            <div class="text-slate-400 mt-2 text-lg">スター</div>
+            <div class="text-sm text-slate-500 mt-1">毎秒: <span id="spsDisplay">0</span> / クリック: <span id="cpcDisplay">1</span></div>
+            
+            <div class="flex justify-center items-center gap-3 mt-3 h-8">
+                <div id="prestigeDisplayContainer" class="hidden px-4 py-1 bg-purple-900/50 border border-purple-500 rounded-full text-purple-200 text-sm font-bold shadow-[0_0_10px_rgba(168,85,247,0.3)]">
+                    🌌 全体ボーナス: +<span id="prestigeBonusDisplay">0</span>%
+                </div>
+                <button id="prestigeShopBtn" onclick="openPrestigeShopModal()" class="hidden px-3 py-1 bg-fuchsia-900/80 hover:bg-fuchsia-800 border border-fuchsia-400 rounded-full text-fuchsia-100 text-sm font-bold shadow-[0_0_10px_rgba(217,70,239,0.4)] transition-colors">
+                    ✨ チリ交換所
+                </button>
+            </div>
+        </div>
+
+        <div id="clickTarget" class="cursor-pointer click-idle drop-shadow-[0_0_15px_rgba(251,191,36,0.5)] hover:drop-shadow-[0_0_25px_rgba(251,191,36,0.8)] rounded-full">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#fbbf24" class="w-48 h-48 sm:w-64 sm:h-64">
+                <path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clip-rule="evenodd" />
+            </svg>
+        </div>
+
+        <div class="mt-12 flex gap-4 flex-wrap justify-center">
+            <button onclick="openSaveModal()" class="px-5 py-3 bg-blue-700 hover:bg-blue-600 text-blue-100 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-blue-900 flex items-center gap-2">
+                <span>📝</span> じゅもんを きく
+            </button>
+            <button onclick="openLoadModal()" class="px-5 py-3 bg-purple-700 hover:bg-purple-600 text-purple-100 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-purple-900 flex items-center gap-2">
+                <span>📖</span> じゅもんを となえる
+            </button>
+            <button id="prestigeBtn" onclick="openPrestigeModal()" class="hidden px-5 py-3 bg-indigo-900 hover:bg-indigo-800 text-indigo-100 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-indigo-950 flex items-center gap-2">
+                <span>🌌</span> ビッグバン (転生)
+            </button>
+        </div>
+    </div>
+
+    <div class="w-full md:w-96 bg-slate-900 overflow-y-auto h-full p-4 flex flex-col gap-4">
+        <h2 class="text-xl font-bold text-slate-300 pb-2 border-b border-slate-700 sticky top-0 bg-slate-900 z-10">
+            アップグレード
+        </h2>
+        <div id="shopContainer" class="flex flex-col gap-3"></div>
+    </div>
+
+    <!-- モーダル群 -->
+    <!-- じゅもん -->
+    <div id="spellModal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-slate-800 p-6 rounded-xl border-4 border-slate-600 max-w-md w-full shadow-2xl relative">
+            <h3 id="modalTitle" class="text-2xl font-bold mb-4 text-yellow-400 text-center tracking-widest">ふっかつのじゅもん</h3>
+            <textarea id="spellInput" class="w-full bg-slate-900 border-2 border-slate-700 text-slate-100 p-4 rounded-lg h-40 text-lg font-mono resize-none focus:outline-none focus:border-yellow-500 shadow-inner leading-relaxed" placeholder="ここに じゅもんを にゅうりょくするのじゃ"></textarea>
+            <p id="spellMessage" class="text-sm mt-3 h-5 text-center font-bold"></p>
+            <div class="flex gap-4 mt-6">
+                <button id="spellActionBtn" class="flex-1 bg-yellow-600 hover:bg-yellow-500 text-slate-900 font-extrabold py-3 rounded-lg transition-colors border-b-4 border-yellow-800 active:border-b-0 active:translate-y-1">コピーする</button>
+                <button id="spellCloseBtn" class="flex-1 bg-slate-600 hover:bg-slate-500 text-slate-100 font-bold py-3 rounded-lg transition-colors border-b-4 border-slate-800 active:border-b-0 active:translate-y-1">とじる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 転生確認 -->
+    <div id="prestigeModal" class="hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4 backdrop-blur-md">
+        <div class="bg-indigo-950 p-8 rounded-xl border-4 border-indigo-500 max-w-lg w-full shadow-[0_0_30px_rgba(99,102,241,0.5)] relative text-center">
+            <h3 class="text-3xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-purple-400 tracking-widest">ビッグバンを起こす</h3>
+            <p class="text-indigo-200 mb-6 text-sm">現在の宇宙を破壊し、新たな宇宙を創造します。<br>スターと施設は失われますが、永遠の力を得ます。</p>
+            <div class="bg-indigo-900/50 p-4 rounded-lg border border-indigo-700 mb-6">
+                <div class="text-slate-300 mb-1">獲得予定の転生ポイント（宇宙のチリ）</div>
+                <div class="text-5xl font-black text-fuchsia-400 mb-2">+<span id="pendingPrestigeDisplay">0</span></div>
+                <div class="text-xs text-indigo-300">※1ポイントにつき、全体の生産量が+1%されます</div>
+            </div>
+            <p id="prestigeWarning" class="text-red-400 text-sm font-bold mb-6 hidden">転生ポイントを獲得するには、もっとスターを集める必要があります。</p>
+            <div class="flex gap-4">
+                <button id="doPrestigeBtn" onclick="doPrestige()" class="flex-1 bg-fuchsia-700 hover:bg-fuchsia-600 text-white font-extrabold py-4 rounded-lg transition-colors border-b-4 border-fuchsia-900 active:border-b-0 active:translate-y-1">転生する</button>
+                <button onclick="closePrestigeModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold py-4 rounded-lg transition-colors border-b-4 border-slate-800 active:border-b-0 active:translate-y-1">やめる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 宇宙のチリ交換所（永続アップグレード） -->
+    <div id="prestigeShopModal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-slate-900 p-6 rounded-xl border-4 border-fuchsia-800 max-w-lg w-full shadow-[0_0_20px_rgba(217,70,239,0.3)] relative">
+            <h3 class="text-2xl font-black mb-1 text-fuchsia-400 text-center tracking-widest">宇宙のチリ交換所</h3>
+            <p class="text-center text-xs text-slate-400 mb-4">ポイントを消費すると、全体の生産ボーナス(+1%)はその分減少します。</p>
+            
+            <div class="text-center mb-4 text-slate-300 border-b border-slate-700 pb-4">
+                所持チリ: <span id="currentChiriDisplay" class="text-3xl font-bold text-fuchsia-300 mx-2">0</span> pt
+            </div>
+
+            <div id="prestigeShopContainer" class="flex flex-col gap-3 mb-6 max-h-[50vh] overflow-y-auto pr-2">
+                <!-- Javascriptで生成 -->
+            </div>
+
+            <div class="flex gap-4">
+                <button onclick="document.getElementById('prestigeShopModal').classList.add('hidden')" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold py-3 rounded-lg transition-colors border-b-4 border-slate-800 active:border-b-0 active:translate-y-1">とじる</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- ゲームの状態 ---
+        let state = {
+            score: 0,
+            starsPerClick: 1,
+            starsPerSecond: 0,
+            totalClicks: 0,
+            lifetimeStars: 0,
+            prestigePoints: 0,
+            puFlags: 0 // プレステージアップグレードの取得状況(ビットフラグ)
+        };
+
+        const upgrades = [
+            { id: 'cursor', name: '流れ星', description: 'クリックごとの獲得量が +1 されます。', baseCost: 15, costMultiplier: 1.15, count: 0, effectType: 'click', effectValue: 1, icon: '☄️' },
+            { id: 'fairy', name: '星の妖精', description: '自動で毎秒 1 スター集めます。', baseCost: 100, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 1, icon: '🧚' },
+            { id: 'factory', name: '星の工場', description: '自動で毎秒 10 スター集めます。', baseCost: 1100, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 10, icon: '🏭' },
+            { id: 'mine', name: '星の鉱山', description: '自動で毎秒 50 スター集めます。', baseCost: 12000, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 50, icon: '⛏️' },
+            { id: 'galaxy', name: '銀河開拓', description: '自動で毎秒 260 スター集めます。', baseCost: 130000, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 260, icon: '🌌' }
+        ];
+
+        // 永続アップグレードの定義
+        const prestigeUpgradesDef = [
+            { id: 'pu0', name: '指先の星屑', desc: '初期のクリック獲得量が +10 される。', cost: 1, icon: '✨' },
+            { id: 'pu1', name: '重力共鳴', desc: '自動生産からクリックへの上乗せ率が 1% から 3% になる。', cost: 5, icon: '🌀' },
+            { id: 'pu2', name: '宇宙の理', desc: '通常施設のコスト上昇率が 1.15倍 から 1.10倍 に緩和される。', cost: 15, icon: '⚖️' }
+        ];
+
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const spsDisplay = document.getElementById('spsDisplay');
+        const cpcDisplay = document.getElementById('cpcDisplay');
+        const clickTarget = document.getElementById('clickTarget');
+        const shopContainer = document.getElementById('shopContainer');
+
+        function formatNumber(num) { return Math.floor(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+
+        function getMultiplier(count) {
+            let mult = 1;
+            if (count >= 10) mult *= 2;
+            if (count >= 25) mult *= 2;
+            if (count >= 50) mult *= 2;
+            if (count >= 100) mult *= 2;
+            return mult;
+        }
+
+        // --- 現在のコスト計算（宇宙の理の影響を受ける） ---
+        function calculateCost(upgrade) {
+            // インデックス2のアップグレードを持っていれば、増加率を1.10に軽減
+            const hasDiscount = (state.puFlags & (1 << 2)) !== 0;
+            const currentMultiplier = hasDiscount ? 1.10 : upgrade.costMultiplier;
+            return Math.floor(upgrade.baseCost * Math.pow(currentMultiplier, upgrade.count));
+        }
+
+        // --- 毎秒/クリックあたりの獲得量を再計算（各種永続強化の影響を受ける） ---
+        function recalculateStats() {
+            const hasClickBonus = (state.puFlags & (1 << 0)) !== 0;
+            const hasSynergyBonus = (state.puFlags & (1 << 1)) !== 0;
+
+            let baseSpc = hasClickBonus ? 11 : 1; // 永続強化があれば初期値11
+            let newSps = 0;
+
+            upgrades.forEach(u => {
+                const mult = getMultiplier(u.count);
+                if (u.effectType === 'click') {
+                    baseSpc += (u.effectValue * u.count) * mult;
+                } else if (u.effectType === 'auto') {
+                    newSps += (u.effectValue * u.count) * mult;
+                }
+            });
+
+            // シナジー強化があれば3%上乗せ
+            const synergyRate = hasSynergyBonus ? 0.03 : 0.01;
+            const synergy = newSps * synergyRate;
+            
+            // 残っているポイント1につき+1%ボーナス
+            const prestigeMultiplier = 1 + (state.prestigePoints * 0.01);
+            
+            state.starsPerClick = (baseSpc + synergy) * prestigeMultiplier;
+            state.starsPerSecond = newSps * prestigeMultiplier;
+        }
+
+        function updateDisplay() {
+            scoreDisplay.innerText = formatNumber(state.score);
+            spsDisplay.innerText = formatNumber(state.starsPerSecond);
+            cpcDisplay.innerText = formatNumber(state.starsPerClick);
+
+            const prestigeContainer = document.getElementById('prestigeDisplayContainer');
+            const prestigeBonus = document.getElementById('prestigeBonusDisplay');
+            const prestigeBtn = document.getElementById('prestigeBtn');
+            const prestigeShopBtn = document.getElementById('prestigeShopBtn');
+            
+            if (state.prestigePoints > 0 || state.lifetimeStars > 1000) prestigeBtn.classList.remove('hidden');
+            
+            if (state.prestigePoints > 0 || state.puFlags > 0) {
+                prestigeContainer.classList.remove('hidden');
+                prestigeShopBtn.classList.remove('hidden');
+                prestigeBonus.innerText = formatNumber(state.prestigePoints);
+            }
+
+            upgrades.forEach((upgrade, index) => {
+                const btn = document.getElementById(`upgrade-btn-${index}`);
+                const costDisplay = document.getElementById(`upgrade-cost-${index}`);
+                const multDisplay = document.getElementById(`upgrade-mult-${index}`);
+                
+                const currentCost = calculateCost(upgrade);
+                const mult = getMultiplier(upgrade.count);
+                
+                if(costDisplay) costDisplay.innerText = formatNumber(currentCost);
+                if(multDisplay) multDisplay.innerText = mult > 1 ? `(現在 ${mult}倍!)` : '';
+
+                if (btn) {
+                    if (state.score >= currentCost) {
+                        btn.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-slate-800');
+                        btn.classList.add('bg-slate-700', 'hover:bg-slate-600', 'cursor-pointer');
+                    } else {
+                        btn.classList.add('opacity-50', 'cursor-not-allowed', 'bg-slate-800');
+                        btn.classList.remove('bg-slate-700', 'hover:bg-slate-600', 'cursor-pointer');
+                    }
+                }
+            });
+        }
+
+        function renderShop() {
+            shopContainer.innerHTML = '';
+            upgrades.forEach((upgrade, index) => {
+                const currentCost = calculateCost(upgrade);
+                let effectText = upgrade.effectType === 'click' ? `クリック力 +${upgrade.effectValue}` : `毎秒 +${upgrade.effectValue}`;
+
+                const btn = document.createElement('div');
+                btn.id = `upgrade-btn-${index}`;
+                btn.className = `flex items-center justify-between p-3 rounded-lg border border-slate-600 transition-colors duration-200 select-none`;
+                
+                btn.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="text-3xl">${upgrade.icon}</div>
+                        <div>
+                            <div class="font-bold text-lg">${upgrade.name} <span id="upgrade-mult-${index}" class="text-green-400 font-bold ml-2 text-sm"></span></div>
+                            <div class="text-sm text-yellow-400 font-mono">Cost: <span id="upgrade-cost-${index}">${formatNumber(currentCost)}</span></div>
+                            <div class="text-xs text-slate-400 hidden sm:block">${upgrade.description}<br><span class="text-indigo-300 font-bold">基本: ${effectText} (10,25,50...個で2倍)</span></div>
+                        </div>
+                    </div>
+                    <div class="text-3xl font-black text-slate-500 bg-slate-800 px-3 py-1 rounded">
+                        <span id="upgrade-count-${index}">${upgrade.count}</span>
+                    </div>
+                `;
+
+                btn.addEventListener('click', () => {
+                    const cost = calculateCost(upgrade);
+                    if (state.score >= cost) {
+                        state.score -= cost;
+                        upgrade.count++;
+                        document.getElementById(`upgrade-count-${index}`).innerText = upgrade.count;
+                        recalculateStats();
+                        updateDisplay();
+                        btn.style.transform = 'scale(0.98)';
+                        setTimeout(() => btn.style.transform = 'scale(1)', 100);
+                    }
+                });
+                shopContainer.appendChild(btn);
+            });
+            updateDisplay();
+        }
+
+        // --- チリ交換所（永続強化）のUI ---
+        function openPrestigeShopModal() {
+            renderPrestigeShop();
+            document.getElementById('prestigeShopModal').classList.remove('hidden');
+        }
+
+        function renderPrestigeShop() {
+            const container = document.getElementById('prestigeShopContainer');
+            container.innerHTML = '';
+            document.getElementById('currentChiriDisplay').innerText = formatNumber(state.prestigePoints);
+
+            prestigeUpgradesDef.forEach((pu, index) => {
+                const isOwned = (state.puFlags & (1 << index)) !== 0;
+                const canAfford = state.prestigePoints >= pu.cost;
+                
+                const div = document.createElement('div');
+                div.className = `flex justify-between items-center p-3 rounded-lg border ${isOwned ? 'bg-fuchsia-900/40 border-fuchsia-500' : 'bg-slate-800 border-slate-600'}`;
+                
+                div.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="text-3xl">${pu.icon}</div>
+                        <div>
+                            <div class="font-bold ${isOwned ? 'text-fuchsia-300' : 'text-slate-200'}">${pu.name}</div>
+                            <div class="text-xs text-slate-400">${pu.desc}</div>
+                        </div>
+                    </div>
+                    <div>
+                        ${isOwned 
+                            ? '<span class="text-fuchsia-400 font-bold text-sm bg-fuchsia-900/50 px-3 py-1 rounded">取得済</span>'
+                            : `<button onclick="buyPrestigeUpgrade(${index}, ${pu.cost})" class="px-4 py-2 rounded font-bold transition-colors ${canAfford ? 'bg-fuchsia-700 hover:bg-fuchsia-600 text-white shadow-lg active:scale-95' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}" ${canAfford ? '' : 'disabled'}>${pu.cost} pt</button>`
+                        }
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function buyPrestigeUpgrade(index, cost) {
+            if (state.prestigePoints >= cost) {
+                state.prestigePoints -= cost;
+                state.puFlags |= (1 << index); // ビットフラグを立てる
+                
+                recalculateStats();
+                renderPrestigeShop();
+                renderShop(); // 割引が適用された場合、ショップのコスト表記を即座に書き換えるため
+                updateDisplay();
+            }
+        }
+
+        function createParticle(x, y) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.innerText = `+${formatNumber(state.starsPerClick)}`;
+            const offsetX = (Math.random() - 0.5) * 40;
+            const offsetY = (Math.random() - 0.5) * 40;
+            particle.style.left = `${x + offsetX}px`;
+            particle.style.top = `${y + offsetY}px`;
+            document.body.appendChild(particle);
+            setTimeout(() => particle.remove(), 1000);
+        }
+
+        function handleClick(e) {
+            state.score += state.starsPerClick;
+            state.lifetimeStars += state.starsPerClick;
+            state.totalClicks++;
+            clickTarget.classList.remove('click-idle');
+            clickTarget.classList.add('click-active');
+            
+            let clientX = e.clientX, clientY = e.clientY;
+            if (e.touches && e.touches.length > 0) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; }
+            else if (clientX === undefined) {
+                const rect = clickTarget.getBoundingClientRect();
+                clientX = rect.left + rect.width / 2; clientY = rect.top + rect.height / 2;
+            }
+            createParticle(clientX, clientY);
+            updateDisplay();
+            setTimeout(() => { clickTarget.classList.remove('click-active'); clickTarget.classList.add('click-idle'); }, 50);
+        }
+
+        clickTarget.addEventListener('mousedown', handleClick);
+        clickTarget.addEventListener('touchstart', (e) => { e.preventDefault(); handleClick(e); }, { passive: false });
+
+        setInterval(() => {
+            if (state.starsPerSecond > 0) {
+                const gain = state.starsPerSecond / 10;
+                state.score += gain;
+                state.lifetimeStars += gain;
+                updateDisplay();
+            }
+        }, 100);
+
+        // --- セーブ＆ロード (ふっかつのじゅもん) ---
+        const b64Str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+        const kanaStr = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをんがぎぐげござじずぜぞだぢづでどばびぶべー";
+
+        function encodeSpell() {
+            const saveData = {
+                s: Math.floor(state.score),
+                u: upgrades.map(u => u.count),
+                l: Math.floor(state.lifetimeStars),
+                p: state.prestigePoints,
+                f: state.puFlags // 永続アップグレードのフラグも保存
+            };
+            const jsonStr = JSON.stringify(saveData);
+            const b64 = btoa(jsonStr);
+            let spell = "";
+            for(let i=0; i<b64.length; i++) spell += kanaStr[b64Str.indexOf(b64[i])];
+            return spell.match(/.{1,10}/g).join(' ');
+        }
+
+        function decodeSpell(spell) {
+            try {
+                spell = spell.replace(/[\s　\n]/g, "");
+                let b64 = "";
+                for(let i=0; i<spell.length; i++) {
+                    const idx = kanaStr.indexOf(spell[i]);
+                    if(idx === -1) throw new Error("無効な文字");
+                    b64 += b64Str[idx];
+                }
+                const saveData = JSON.parse(atob(b64));
+                
+                if (typeof saveData.s === 'number' && Array.isArray(saveData.u)) {
+                    state.score = saveData.s;
+                    state.lifetimeStars = saveData.l || saveData.s;
+                    state.prestigePoints = saveData.p || 0;
+                    state.puFlags = saveData.f || 0; // 古いデータなら0
+
+                    saveData.u.forEach((count, i) => { if (upgrades[i] !== undefined) upgrades[i].count = count; });
+                    recalculateStats(); renderShop(); updateDisplay();
+                    return true;
+                }
+                return false;
+            } catch (e) { return false; }
+        }
+
+        // --- 転生処理 ---
+        function calculatePendingPrestige() {
+            const totalPrestigePossible = Math.floor(Math.cbrt(state.lifetimeStars / 1000));
+            return Math.max(0, totalPrestigePossible - state.prestigePoints - countSpentPoints());
+        }
+
+        // 既に消費したポイントを計算する（取得フラグから逆算）
+        function countSpentPoints() {
+            let spent = 0;
+            prestigeUpgradesDef.forEach((pu, idx) => {
+                if ((state.puFlags & (1 << idx)) !== 0) spent += pu.cost;
+            });
+            return spent;
+        }
+
+        function openPrestigeModal() {
+            const pending = calculatePendingPrestige();
+            document.getElementById('pendingPrestigeDisplay').innerText = formatNumber(pending);
+            const doBtn = document.getElementById('doPrestigeBtn');
+            const warning = document.getElementById('prestigeWarning');
+            
+            if (pending <= 0) {
+                warning.classList.remove('hidden');
+                doBtn.classList.add('opacity-50', 'cursor-not-allowed'); doBtn.disabled = true;
+            } else {
+                warning.classList.add('hidden');
+                doBtn.classList.remove('opacity-50', 'cursor-not-allowed'); doBtn.disabled = false;
+            }
+            document.getElementById('prestigeModal').classList.remove('hidden');
+        }
+
+        function closePrestigeModal() { document.getElementById('prestigeModal').classList.add('hidden'); }
+
+        function doPrestige() {
+            const pending = calculatePendingPrestige();
+            if (pending <= 0) return;
+
+            state.prestigePoints += pending;
+            state.score = 0;
+            upgrades.forEach(u => u.count = 0);
+            
+            closePrestigeModal();
+            const overlay = document.createElement('div');
+            overlay.className = "fixed inset-0 bg-fuchsia-500 z-50 pointer-events-none transition-opacity duration-1000 opacity-100";
+            document.body.appendChild(overlay);
+            setTimeout(() => overlay.classList.replace('opacity-100', 'opacity-0'), 100);
+            setTimeout(() => overlay.remove(), 1100);
+
+            recalculateStats(); renderShop(); updateDisplay();
+        }
+
+        // --- モーダル制御（じゅもん） ---
+        const spellModal = document.getElementById('spellModal');
+        const spellInput = document.getElementById('spellInput');
+        const spellMessage = document.getElementById('spellMessage');
+        const spellActionBtn = document.getElementById('spellActionBtn');
+        const spellCloseBtn = document.getElementById('spellCloseBtn');
+
+        function openSaveModal() {
+            spellModal.classList.remove('hidden');
+            spellInput.value = encodeSpell(); spellInput.readOnly = true;
+            spellMessage.innerText = "この じゅもんを かきとめて おくのじゃ！"; spellMessage.className = "text-sm text-yellow-400 mt-3 h-5 text-center font-bold";
+            spellActionBtn.innerText = "コピーする"; spellCloseBtn.innerText = "とじる";
+            spellActionBtn.onclick = () => { spellInput.select(); document.execCommand('copy'); spellMessage.innerText = "じゅもんを コピーしたぞ！"; spellMessage.className = "text-sm text-blue-400 mt-3 h-5 text-center font-bold"; };
+        }
+
+        function openLoadModal() {
+            spellModal.classList.remove('hidden');
+            spellInput.value = ""; spellInput.readOnly = false;
+            spellMessage.innerText = "ふっかつのじゅもんを にゅうりょく してくれ。"; spellMessage.className = "text-sm text-slate-300 mt-3 h-5 text-center";
+            spellActionBtn.innerText = "ふっかつする"; spellCloseBtn.innerText = "やめる";
+            spellActionBtn.onclick = () => {
+                if (decodeSpell(spellInput.value)) {
+                    spellModal.classList.add('hidden');
+                    const overlay = document.createElement('div'); overlay.className = "fixed inset-0 bg-white z-50 pointer-events-none transition-opacity duration-500 opacity-100"; document.body.appendChild(overlay);
+                    setTimeout(() => overlay.classList.replace('opacity-100', 'opacity-0'), 50); setTimeout(() => overlay.remove(), 550);
+                } else {
+                    spellMessage.innerText = "じゅもんが ちがいます。"; spellMessage.className = "text-sm text-red-400 mt-3 h-5 text-center font-bold";
+                }
+            };
+        }
+        spellCloseBtn.onclick = () => spellModal.classList.add('hidden');
+
+        // --- 初期化 ---
+        renderShop(); recalculateStats(); updateDisplay();
+    </script>
+</body>
+</html>
