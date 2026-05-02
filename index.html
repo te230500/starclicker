@@ -83,6 +83,9 @@
             <button onclick="openLoadModal()" class="flex-1 py-2 px-2 bg-purple-800 hover:bg-purple-700 text-purple-100 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-purple-900 flex justify-center items-center gap-1 text-sm">
                 <span>📖</span> ふっかつ
             </button>
+            <button onclick="toggleAutoBuy()" id="autoBuyBtn" class="flex-1 py-2 px-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-slate-800 flex justify-center items-center gap-1 text-sm">
+                <span>🤖</span> アシスト: OFF
+            </button>
         </div>
         <button id="prestigeBtn" onclick="openPrestigeModal()" class="hidden mt-3 w-full max-w-md py-3 bg-indigo-900 hover:bg-indigo-800 text-indigo-100 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-indigo-950 flex justify-center items-center gap-2">
             <span>🌌</span> ビッグバン (転生)
@@ -150,7 +153,8 @@
         let state = {
             score: 0, starsPerClick: 1, starsPerSecond: 0,
             totalClicks: 0, lifetimeStars: 0, prestigePoints: 0, puFlags: 0,
-            achieveFlags: 0, bonusClicks: 0, feverMultiplier: 1 // 新規状態
+            achieveFlags: 0, bonusClicks: 0, feverMultiplier: 1,
+            autoBuy: false // オート購入状態
         };
 
         const upgrades = [
@@ -468,11 +472,87 @@
         clickTarget.addEventListener('mousedown', handleClick);
         clickTarget.addEventListener('touchstart', (e) => { e.preventDefault(); handleClick(e); }, { passive: false });
 
+        // --- オート購入アシスト ---
+        function toggleAutoBuy() {
+            state.autoBuy = !state.autoBuy;
+            const btn = document.getElementById('autoBuyBtn');
+            if (state.autoBuy) {
+                btn.classList.replace('bg-slate-700', 'bg-rose-700');
+                btn.classList.replace('hover:bg-slate-600', 'hover:bg-rose-600');
+                btn.classList.replace('border-slate-800', 'border-rose-900');
+                btn.classList.replace('text-slate-300', 'text-rose-100');
+                btn.innerHTML = '<span>🤖</span> アシスト: ON';
+            } else {
+                btn.classList.replace('bg-rose-700', 'bg-slate-700');
+                btn.classList.replace('hover:bg-rose-600', 'hover:bg-slate-600');
+                btn.classList.replace('border-rose-900', 'border-slate-800');
+                btn.classList.replace('text-rose-100', 'text-slate-300');
+                btn.innerHTML = '<span>🤖</span> アシスト: OFF';
+            }
+        }
+
+        function executeAutoBuy() {
+            if (!state.autoBuy) return;
+
+            let bestIndex = -1;
+            let bestRatio = Infinity;
+
+            // 全施設の中で「1スターあたりの生産増加量（コスパ）」が最も良いものを探す
+            upgrades.forEach((u, i) => {
+                const cost = calculateCost(u);
+                const nextMult = getMultiplier(u.count + 1);
+                const currentMult = getMultiplier(u.count);
+                
+                // 次の1個を買ったときに増える「基本効果量」の増分を算出 (マイルストーン倍率を考慮)
+                const currentTotalEffect = u.effectValue * u.count * currentMult;
+                const nextTotalEffect = u.effectValue * (u.count + 1) * nextMult;
+                const effectIncrease = nextTotalEffect - currentTotalEffect;
+                
+                if (effectIncrease > 0) {
+                    const ratio = cost / effectIncrease; // 小さいほどコスパが良い
+                    if (ratio < bestRatio) {
+                        bestRatio = ratio;
+                        bestIndex = i;
+                    }
+                }
+            });
+
+            if (bestIndex !== -1) {
+                const targetUpgrade = upgrades[bestIndex];
+                const cost = calculateCost(targetUpgrade);
+                // コスパ最強の目標施設が現在買えるなら買う（買えないなら貯まるまで待機する）
+                if (state.score >= cost) {
+                    state.score -= cost;
+                    targetUpgrade.count++;
+                    const countElem = document.getElementById(`upgrade-count-${bestIndex}`);
+                    if (countElem) countElem.innerText = targetUpgrade.count;
+                    
+                    recalculateStats();
+                    updateDisplay();
+                    checkAchievements();
+                    
+                    // UI上の購入エフェクト
+                    const btn = document.getElementById(`upgrade-btn-${bestIndex}`);
+                    if (btn) {
+                        btn.style.transform = 'scale(0.96)';
+                        setTimeout(() => btn.style.transform = 'scale(1)', 100);
+                    }
+                }
+            }
+        }
+
         // --- ゲームループ ---
+        let loopCounter = 0;
         setInterval(() => {
             if (state.starsPerSecond > 0) {
                 const gain = state.starsPerSecond / 10;
                 state.score += gain; state.lifetimeStars += gain; updateDisplay();
+            }
+            
+            loopCounter++;
+            // 0.5秒に1回、オート購入の判定を行う
+            if (loopCounter % 5 === 0) {
+                executeAutoBuy();
             }
         }, 100);
 
