@@ -17,10 +17,10 @@
         @keyframes pulse-glow { 0%, 100% { filter: drop-shadow(0 0 10px rgba(251,191,36,0.8)) scale(1); } 50% { filter: drop-shadow(0 0 25px rgba(251,191,36,1)) scale(1.1); } }
         .bonus-star { animation: pulse-glow 1.5s infinite ease-in-out; }
         
-        /* 画面サイズに合わせた星の可変サイズ */
+        /* 画面サイズに合わせた星の可変サイズ (スマホで溢れないよう調整) */
         .star-svg {
-            width: clamp(120px, 30vh, 256px);
-            height: clamp(120px, 30vh, 256px);
+            width: clamp(100px, 25vh, 256px);
+            height: clamp(100px, 25vh, 256px);
         }
         
         /* 各種バフ発動時の背景 */
@@ -38,11 +38,32 @@
     <!-- トースト通知コンテナ -->
     <div id="toastContainer" class="fixed bottom-20 md:bottom-6 right-4 flex flex-col gap-2 z-50 pointer-events-none"></div>
 
-    <!-- メイン画面 (縦幅が足りないスマホ端末のためにスクロールを許可) -->
-    <div class="flex-1 flex flex-col items-center justify-between p-4 md:p-6 bg-transparent relative border-b md:border-b-0 md:border-r border-slate-700 overflow-y-auto pb-24 md:pb-6 z-10" id="mainArea">
+    <!-- ================= スマホ専用 UI ================= -->
+    <!-- スマホ用: 左上メニューボタン -->
+    <button onclick="toggleMobileMenu()" class="md:hidden fixed top-4 left-4 z-50 bg-slate-800/80 backdrop-blur px-3 py-2 rounded-lg border border-slate-600 text-slate-300 shadow-lg flex items-center gap-2">
+        <span class="text-xl">⚙️</span> <span class="text-xs font-bold">メニュー</span>
+    </button>
+
+    <!-- スマホ用: モバイルメニューパネル -->
+    <div id="mobileMenuPanel" class="hidden md:hidden fixed top-16 left-4 z-50 bg-slate-800/95 backdrop-blur p-3 rounded-lg border border-slate-600 shadow-2xl flex flex-col gap-3 w-48">
+        <button onclick="openSaveModal(); toggleMobileMenu()" class="w-full py-2 bg-blue-800 hover:bg-blue-700 text-blue-100 rounded-lg font-bold shadow-lg border-b-4 border-blue-900 text-sm">📝 じゅもん(保存)</button>
+        <button onclick="openLoadModal(); toggleMobileMenu()" class="w-full py-2 bg-purple-800 hover:bg-purple-700 text-purple-100 rounded-lg font-bold shadow-lg border-b-4 border-purple-900 text-sm">📖 ふっかつ(読込)</button>
+        <button onclick="toggleAutoBuy()" class="auto-buy-btn w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg font-bold shadow-lg border-b-4 border-slate-800 text-sm">🤖 ｱｼｽﾄ:OFF</button>
+    </div>
+
+    <!-- スマホ用: 転生ボタン (下部タブバーのすぐ上) -->
+    <div class="prestige-btn-container hidden md:hidden fixed bottom-20 left-0 w-full px-4 pb-2 z-30 pointer-events-none">
+        <button onclick="openPrestigeModal()" class="w-full py-3 bg-indigo-900 hover:bg-indigo-800 text-indigo-100 rounded-lg font-bold shadow-lg border-b-4 border-indigo-950 flex justify-center items-center gap-2 pointer-events-auto">
+            <span class="text-xl">🌌</span> ビッグバン (転生)
+        </button>
+    </div>
+    <!-- ================================================= -->
+
+    <!-- メイン画面 (完全スクロール不可に修正) -->
+    <div class="flex-1 flex flex-col items-center justify-between p-4 md:p-6 bg-transparent relative border-b md:border-b-0 md:border-r border-slate-700 overflow-hidden pb-16 md:pb-6 z-10" id="mainArea">
         
         <!-- ボーナス星 -->
-        <div id="bonusStarElem" onclick="clickBonusStar(event)" class="hidden absolute z-50 cursor-pointer bonus-star transition-opacity duration-300">
+        <div id="bonusStarElem" onclick="clickBonusStar(event)" class="hidden absolute z-40 cursor-pointer bonus-star transition-opacity duration-300">
             <div class="text-4xl md:text-6xl drop-shadow-[0_0_15px_#fbbf24]">🌟</div>
         </div>
 
@@ -79,24 +100,27 @@
             </svg>
         </div>
 
-        <div class="flex flex-col gap-2 w-full max-w-md z-10 shrink-0 mt-auto">
+        <!-- PC専用 ボタン群 -->
+        <div class="hidden md:flex flex-col gap-2 w-full max-w-md z-10 shrink-0 mt-auto">
             <div class="flex gap-2 w-full">
-                <button onclick="openAchieveModal()" class="hidden md:flex flex-1 py-2 px-1 bg-emerald-800 hover:bg-emerald-700 text-emerald-100 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-emerald-900 justify-center items-center gap-1 text-xs md:text-sm">
+                <button onclick="openAchieveModal()" class="flex-1 py-2 px-1 bg-emerald-800 hover:bg-emerald-700 text-emerald-100 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-emerald-900 justify-center items-center gap-1 text-sm">
                     <span>🏆</span> 実績確認
                 </button>
-                <button onclick="openSaveModal()" class="flex-1 py-2 px-1 bg-blue-800 hover:bg-blue-700 text-blue-100 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-blue-900 flex justify-center items-center gap-1 text-xs md:text-sm">
+                <button onclick="openSaveModal()" class="flex-1 py-2 px-1 bg-blue-800 hover:bg-blue-700 text-blue-100 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-blue-900 flex justify-center items-center gap-1 text-sm">
                     <span>📝</span> じゅもん
                 </button>
-                <button onclick="openLoadModal()" class="flex-1 py-2 px-1 bg-purple-800 hover:bg-purple-700 text-purple-100 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-purple-900 flex justify-center items-center gap-1 text-xs md:text-sm">
+                <button onclick="openLoadModal()" class="flex-1 py-2 px-1 bg-purple-800 hover:bg-purple-700 text-purple-100 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-purple-900 flex justify-center items-center gap-1 text-sm">
                     <span>📖</span> ふっかつ
                 </button>
-                <button onclick="toggleAutoBuy()" id="autoBuyBtn" class="flex-1 py-2 px-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-slate-800 flex justify-center items-center gap-1 text-xs md:text-sm">
+                <button onclick="toggleAutoBuy()" class="auto-buy-btn flex-1 py-2 px-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-slate-800 flex justify-center items-center gap-1 text-sm">
                     <span>🤖</span> ｱｼｽﾄ:OFF
                 </button>
             </div>
-            <button id="prestigeBtn" onclick="openPrestigeModal()" class="hidden w-full py-2 bg-indigo-900 hover:bg-indigo-800 text-indigo-100 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-indigo-950 justify-center items-center gap-2">
-                <span>🌌</span> ビッグバン (転生)
-            </button>
+            <div class="prestige-btn-container hidden w-full">
+                <button onclick="openPrestigeModal()" class="w-full py-2 bg-indigo-900 hover:bg-indigo-800 text-indigo-100 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-indigo-950 flex justify-center items-center gap-2">
+                    <span>🌌</span> ビッグバン (転生)
+                </button>
+            </div>
         </div>
     </div>
 
@@ -154,11 +178,16 @@
             shopPanel.classList.toggle('translate-y-full', !isShopOpen);
         }
 
+        let isMobileMenuOpen = false;
+        function toggleMobileMenu() {
+            isMobileMenuOpen = !isMobileMenuOpen;
+            document.getElementById('mobileMenuPanel').classList.toggle('hidden', !isMobileMenuOpen);
+        }
+
         let state = {
             score: 0, starsPerClick: 1, starsPerSecond: 0,
             totalClicks: 0, lifetimeStars: 0, prestigePoints: 0, puFlags: 0,
             achieveFlags: 0, bonusClicks: 0, autoBuy: false,
-            // 動的バフの倍率 (セーブ対象外)
             spsBuff: 1, clickBuff: 1, discountBuff: 1 
         };
 
@@ -316,7 +345,9 @@
                 pContainer.classList.remove('hidden'); document.getElementById('prestigeShopBtn').classList.remove('hidden');
                 document.getElementById('prestigeBonusDisplay').innerText = formatNumber(state.prestigePoints);
             }
-            if (state.lifetimeStars > 1000) document.getElementById('prestigeBtn').classList.remove('hidden');
+            if (state.lifetimeStars > 1000) {
+                document.querySelectorAll('.prestige-btn-container').forEach(el => el.classList.remove('hidden'));
+            }
 
             const achievedCount = getAchievedCount();
             if (achievedCount > 0) {
@@ -543,16 +574,17 @@
         // --- オート購入アシスト ---
         function toggleAutoBuy() {
             state.autoBuy = !state.autoBuy;
-            const btn = document.getElementById('autoBuyBtn');
-            if (state.autoBuy) {
-                btn.classList.replace('bg-slate-700', 'bg-rose-700'); btn.classList.replace('hover:bg-slate-600', 'hover:bg-rose-600');
-                btn.classList.replace('border-slate-800', 'border-rose-900'); btn.classList.replace('text-slate-300', 'text-rose-100');
-                btn.innerHTML = '<span>🤖</span> ｱｼｽﾄ:ON';
-            } else {
-                btn.classList.replace('bg-rose-700', 'bg-slate-700'); btn.classList.replace('hover:bg-rose-600', 'hover:bg-slate-600');
-                btn.classList.replace('border-rose-900', 'border-slate-800'); btn.classList.replace('text-rose-100', 'text-slate-300');
-                btn.innerHTML = '<span>🤖</span> ｱｼｽﾄ:OFF';
-            }
+            document.querySelectorAll('.auto-buy-btn').forEach(btn => {
+                if (state.autoBuy) {
+                    btn.classList.replace('bg-slate-700', 'bg-rose-700'); btn.classList.replace('hover:bg-slate-600', 'hover:bg-rose-600');
+                    btn.classList.replace('border-slate-800', 'border-rose-900'); btn.classList.replace('text-slate-300', 'text-rose-100');
+                    btn.innerHTML = '<span>🤖</span> ｱｼｽﾄ:ON';
+                } else {
+                    btn.classList.replace('bg-rose-700', 'bg-slate-700'); btn.classList.replace('hover:bg-rose-600', 'hover:bg-slate-600');
+                    btn.classList.replace('border-rose-900', 'border-slate-800'); btn.classList.replace('text-rose-100', 'text-slate-300');
+                    btn.innerHTML = '<span>🤖</span> ｱｼｽﾄ:OFF';
+                }
+            });
         }
 
         function executeAutoBuy() {
@@ -561,10 +593,8 @@
             
             for (let loop = 0; loop < 50; loop++) {
                 let bestIndex = -1; 
-                let bestEvalScore = Infinity; // 評価スコア（小さいほど優先度が高い）
+                let bestEvalScore = Infinity; 
 
-                // 現在の推定秒間収入（SPS + プレイヤーが軽くクリックしていると仮定した仮想値）
-                // 序盤のSPSが0の状態で計算が崩壊するのを防ぐ
                 const estimatedIncomePerSec = Math.max(0.1, state.starsPerSecond + (state.starsPerClick * 2));
 
                 upgrades.forEach((u, i) => {
@@ -574,14 +604,9 @@
                     const effectIncrease = (u.effectValue * (u.count + 1) * nextMult) - (u.effectValue * u.count * currentMult);
                     
                     if (effectIncrease > 0) {
-                        // 1. その施設を買うために待つ時間 (不足分 ÷ 秒間収入)
                         const shortage = Math.max(0, cost - state.score);
                         const timeToBuy = shortage / estimatedIncomePerSec;
-
-                        // 2. 買った後、コストを回収するまでの時間 (コスト ÷ 増加効率)
                         const paybackTime = cost / effectIncrease;
-
-                        // 新アルゴリズム: 「待機時間」と「回収時間」の合計が最も短いものを狙う
                         const evalScore = timeToBuy + paybackTime;
                         
                         if (evalScore < bestEvalScore) { 
@@ -595,7 +620,7 @@
                     const cost = calculateCost(upgrades[bestIndex]);
                     if (state.score >= cost) {
                         state.score -= cost; upgrades[bestIndex].count++; boughtSomething = true;
-                    } else break; // 最善のものが買えないなら貯金する
+                    } else break; 
                 } else break;
             }
 
