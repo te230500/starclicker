@@ -33,13 +33,13 @@
         .toast-enter { animation: slideInRight 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
     </style>
 </head>
-<body id="gameBody" class="bg-slate-900 text-slate-100 font-sans h-screen overflow-hidden flex flex-col md:flex-row select-none">
+<body id="gameBody" class="bg-slate-900 text-slate-100 font-sans h-screen h-[100dvh] overflow-hidden flex flex-col md:flex-row select-none">
 
     <!-- トースト通知コンテナ -->
     <div id="toastContainer" class="fixed bottom-20 md:bottom-6 right-4 flex flex-col gap-2 z-50 pointer-events-none"></div>
 
-    <!-- メイン画面 (スクロールを無くし、flexで画面内に収めるレイアウトに変更) -->
-    <div class="flex-1 flex flex-col items-center justify-between p-4 md:p-6 bg-transparent relative border-b md:border-b-0 md:border-r border-slate-700 overflow-hidden pb-20 md:pb-6 z-10" id="mainArea">
+    <!-- メイン画面 (縦幅が足りないスマホ端末のためにスクロールを許可) -->
+    <div class="flex-1 flex flex-col items-center justify-between p-4 md:p-6 bg-transparent relative border-b md:border-b-0 md:border-r border-slate-700 overflow-y-auto pb-24 md:pb-6 z-10" id="mainArea">
         
         <!-- ボーナス星 -->
         <div id="bonusStarElem" onclick="clickBonusStar(event)" class="hidden absolute z-50 cursor-pointer bonus-star transition-opacity duration-300">
