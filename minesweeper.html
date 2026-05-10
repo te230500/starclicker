@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logical Minesweeper</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a; /* slate-900 */
+            --cell-size: 30px;
+            --cell-revealed: #020617; /* slate-950 */
+        }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            color: #e2e8f0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: manipulation;
+        }
+        .grid-container {
+            display: grid;
+            gap: 1px;
+            background-color: #475569;
+            border: 2px solid #334155;
+            border-radius: 6px;
+            margin: 0 auto;
+            width: max-content;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            padding: 2px;
+        }
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            cursor: pointer;
+            user-select: none;
+            background: linear-gradient(135deg, #334155, #1e293b);
+            border-top: 1px solid #475569;
+            border-left: 1px solid #475569;
+            border-bottom: 1px solid #0f172a;
+            border-right: 1px solid #0f172a;
+            box-shadow: inset 1px 1px 0 rgba(255,255,255,0.1);
+            transition: all 0.1s;
+        }
+        .cell:hover:not(.revealed) {
+            background: #475569;
+        }
+        .cell.revealed {
+            background: var(--cell-revealed);
+            border: 1px solid #1e293b;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.8);
+            cursor: default;
+        }
+        .cell.mine {
+            background-color: #991b1b;
+            box-shadow: 0 0 10px #ef4444;
+        }
+        .cell.flagged {
+            text-shadow: 0 0 5px #ef4444;
+        }
+        .cell:active:not(.revealed) {
+            background: var(--cell-revealed);
+            border-style: solid;
+        }
+        
+        /* Neon Number Colors */
+        .n1 { color: #38bdf8; text-shadow: 0 0 4px rgba(56, 189, 248, 0.5); } /* Light Blue */
+        .n2 { color: #4ade80; text-shadow: 0 0 4px rgba(74, 222, 128, 0.5); } /* Green */
+        .n3 { color: #f87171; text-shadow: 0 0 4px rgba(248, 113, 113, 0.5); } /* Red */
+        .n4 { color: #818cf8; text-shadow: 0 0 4px rgba(129, 140, 248, 0.5); } /* Indigo */
+        .n5 { color: #f472b6; text-shadow: 0 0 4px rgba(244, 114, 182, 0.5); } /* Pink */
+        .n6 { color: #2dd4bf; text-shadow: 0 0 4px rgba(45, 212, 191, 0.5); } /* Teal */
+        .n7 { color: #facc15; text-shadow: 0 0 4px rgba(250, 204, 21, 0.5); } /* Yellow */
+        .n8 { color: #e2e8f0; text-shadow: 0 0 4px rgba(226, 232, 240, 0.5); } /* White */
+
+        @media (max-width: 640px) {
+            :root {
+                --cell-size: 28px;
+            }
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="bg-slate-800/80 backdrop-blur-md p-6 rounded-2xl shadow-[0_0_40px_rgba(0,0,0,0.5)] max-w-full overflow-auto border border-slate-700">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 tracking-wider filter drop-shadow-lg">MINESWEEPER</h1>
+            <div class="flex gap-2">
+                <div id="status-emoji" class="w-12 h-12 flex items-center justify-center bg-slate-900 rounded-full border border-slate-600 text-2xl cursor-pointer hover:bg-slate-700 hover:border-cyan-400 transition-all shadow-[0_0_10px_rgba(0,0,0,0.5)]" title="Restart">😊</div>
+            </div>
+        </div>
+        
+        <!-- Controls -->
+        <div class="flex flex-wrap justify-between gap-4 mb-6">
+            <div class="flex items-center gap-3">
+                <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">Difficulty</label>
+                <select id="difficulty" class="px-4 py-2 border border-slate-600 rounded-lg bg-slate-900 text-cyan-400 font-bold focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 outline-none transition cursor-pointer">
+                    <option value="easy">初級 (9x9)</option>
+                    <option value="medium" selected>中級 (16x16)</option>
+                    <option value="hard">上級 (30x16)</option>
+                </select>
+            </div>
+            <div class="flex gap-2">
+                <button id="rules-btn" class="px-4 py-2 bg-slate-800 text-cyan-400 border border-cyan-700 rounded-lg hover:bg-slate-700 transition font-bold text-sm shadow-[0_0_10px_rgba(6,182,212,0.2)] flex items-center gap-1" title="遊び方">
+                    <span>ℹ️</span> <span class="hidden sm:inline">ルール</span>
+                </button>
+                <button id="restart" class="px-6 py-2 bg-gradient-to-r from-cyan-600 to-blue-700 text-white rounded-lg hover:from-cyan-500 hover:to-blue-600 transition font-bold text-sm shadow-[0_0_15px_rgba(6,182,212,0.4)] tracking-widest uppercase">RESTART</button>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 gap-6 mb-8">
+            <div class="bg-slate-900 border border-slate-700 p-4 rounded-xl flex items-center justify-center gap-4 shadow-inner relative overflow-hidden">
+                <div class="absolute inset-0 bg-red-500/5 blur-xl"></div>
+                <span class="text-2xl filter drop-shadow-[0_0_5px_rgba(239,68,68,0.8)]">💣</span>
+                <span id="mine-count" class="font-mono text-3xl font-black text-red-500 tracking-widest drop-shadow-[0_0_8px_rgba(239,68,68,0.6)] z-10">010</span>
+            </div>
+            <div class="bg-slate-900 border border-slate-700 p-4 rounded-xl flex items-center justify-center gap-4 shadow-inner relative overflow-hidden">
+                <div class="absolute inset-0 bg-cyan-500/5 blur-xl"></div>
+                <span class="text-2xl filter drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]">⏱️</span>
+                <span id="timer" class="font-mono text-3xl font-black text-cyan-400 tracking-widest drop-shadow-[0_0_8px_rgba(6,182,212,0.6)] z-10">000</span>
+            </div>
+        </div>
+
+        <!-- Game Board -->
+        <div id="board" class="grid-container"></div>
+
+        <!-- Instructions -->
+        <div class="mt-8 text-[11px] text-slate-500 text-center tracking-widest leading-relaxed font-semibold">
+            左クリック: 開く <span class="mx-2 text-slate-700">|</span> 右クリック: 旗を立てる<br>
+            スマホ: 長押しで旗 <span class="mx-2 text-slate-700">|</span> 初手は必ず安全
+        </div>
+    </div>
+
+    <!-- Rules Modal (Hidden by default) -->
+    <div id="rules-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity duration-300 opacity-0">
+        <div id="rules-content" class="bg-slate-900 border-2 border-cyan-500 p-8 rounded-2xl shadow-[0_0_30px_rgba(6,182,212,0.6)] text-left transform scale-95 transition-all duration-300 max-w-md w-full mx-4 text-slate-300">
+            <h2 class="text-2xl font-black mb-6 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 tracking-wider text-center">HOW TO PLAY</h2>
+            <div class="space-y-4 text-sm font-medium leading-relaxed">
+                <p><span class="text-cyan-400 font-bold text-base">🎯 目的</span><br>地雷（💣）をすべて避け、安全なマスをすべて開けばクリアです。</p>
+                <p><span class="text-cyan-400 font-bold text-base">🔢 数字の意味</span><br>開いたマスに書かれた数字は、その周囲8マスに隠れている地雷の数を示しています。</p>
+                <p><span class="text-cyan-400 font-bold text-base">🚩 旗（フラグ）</span><br>地雷があると思ったマスには右クリック（スマホは長押し）で旗を立てて目印にしましょう。旗を立てたマスは誤って開かなくなります。</p>
+                <p><span class="text-cyan-400 font-bold text-base">🛡️ 初手セーフ</span><br>最初のクリック地点とその周囲には絶対に地雷が配置されません。安心してクリックしてください。</p>
+            </div>
+            <button id="close-rules" class="mt-8 px-8 py-3 bg-slate-800 border border-cyan-700 text-cyan-400 rounded-lg hover:bg-slate-700 transition font-bold tracking-widest uppercase w-full">CLOSE</button>
+        </div>
+    </div>
+
+    <!-- Result Modal (Hidden by default) -->
+    <div id="result-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity duration-300 opacity-0">
+        <div id="modal-content" class="bg-slate-900 border-2 border-cyan-500 p-8 rounded-2xl shadow-[0_0_30px_rgba(6,182,212,0.6)] text-center transform scale-95 transition-all duration-300 max-w-md w-full mx-4">
+            <h2 id="modal-title" class="text-4xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 tracking-wider">MISSION ACCOMPLISHED</h2>
+            
+            <div id="modal-message" class="text-lg font-bold mb-6 leading-relaxed"></div>
+            
+            <div class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2" id="modal-subtitle">Clear Time</div>
+            <div class="flex justify-center mb-8">
+                <div class="bg-slate-800 border border-slate-700 px-6 py-3 rounded-xl flex items-center gap-3 shadow-inner">
+                    <span class="text-xl">⏱️</span>
+                    <span id="modal-time" class="font-mono text-5xl font-black text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]">000</span>
+                </div>
+            </div>
+            <button id="modal-restart" class="px-8 py-3 bg-gradient-to-r from-cyan-600 to-blue-700 text-white rounded-lg hover:from-cyan-500 hover:to-blue-600 transition font-bold tracking-widest uppercase shadow-[0_0_15px_rgba(6,182,212,0.4)] w-full">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <script>
+        const CONFIGS = {
+            easy: { rows: 9, cols: 9, mines: 10 },
+            medium: { rows: 16, cols: 16, mines: 40 },
+            hard: { rows: 16, cols: 30, mines: 99 }
+        };
+
+        let board = [];
+        let rows, cols, minesCount;
+        let revealedCount = 0;
+        let flaggedCount = 0;
+        let gameOver = false;
+        let timerInterval = null;
+        let seconds = 0;
+        let firstClick = true;
+
+        const boardElement = document.getElementById('board');
+        const mineDisplay = document.getElementById('mine-count');
+        const timerDisplay = document.getElementById('timer');
+        const statusEmoji = document.getElementById('status-emoji');
+        const difficultySelect = document.getElementById('difficulty');
+        const restartBtn = document.getElementById('restart');
+
+        // Modal Elements
+        const resultModal = document.getElementById('result-modal');
+        const modalContent = document.getElementById('modal-content');
+        const modalTitle = document.getElementById('modal-title');
+        const modalSubtitle = document.getElementById('modal-subtitle');
+        const modalTime = document.getElementById('modal-time');
+        const modalMessage = document.getElementById('modal-message');
+        const modalRestartBtn = document.getElementById('modal-restart');
+        
+        const rulesBtn = document.getElementById('rules-btn');
+        const rulesModal = document.getElementById('rules-modal');
+        const closeRulesBtn = document.getElementById('close-rules');
+        const rulesContent = document.getElementById('rules-content');
+
+        function initGame() {
+            const config = CONFIGS[difficultySelect.value];
+            rows = config.rows;
+            cols = config.cols;
+            minesCount = config.mines;
+            
+            resetState();
+            createBoardUI();
+        }
+
+        function resetState() {
+            board = [];
+            revealedCount = 0;
+            flaggedCount = 0;
+            gameOver = false;
+            firstClick = true;
+            clearInterval(timerInterval);
+            seconds = 0;
+            timerDisplay.textContent = '000';
+            mineDisplay.textContent = minesCount.toString().padStart(3, '0');
+            statusEmoji.textContent = '😊';
+            
+            // Hide result modal
+            resultModal.classList.add('hidden');
+            resultModal.classList.remove('opacity-100');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            
+            for (let r = 0; r < rows; r++) {
+                board[r] = [];
+                for (let c = 0; c < cols; c++) {
+                    board[r][c] = {
+                        isMine: false,
+                        revealed: false,
+                        flagged: false,
+                        neighborMines: 0,
+                        r, c
+                    };
+                }
+            }
+        }
+
+        function createBoardUI() {
+            boardElement.innerHTML = '';
+            boardElement.style.gridTemplateColumns = `repeat(${cols}, var(--cell-size))`;
+            
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const cellEl = document.createElement('div');
+                    cellEl.classList.add('cell');
+                    cellEl.dataset.r = r;
+                    cellEl.dataset.c = c;
+                    
+                    cellEl.addEventListener('click', () => handleCellClick(r, c));
+                    cellEl.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        handleRightClick(r, c);
+                    });
+
+                    // Touch support for flagging
+                    let pressTimer;
+                    cellEl.addEventListener('touchstart', (e) => {
+                        if (gameOver) return;
+                        pressTimer = setTimeout(() => {
+                            handleRightClick(r, c);
+                            window.navigator.vibrate?.(50); // Haptic feedback if supported
+                        }, 500);
+                    }, {passive: true});
+                    cellEl.addEventListener('touchend', () => clearTimeout(pressTimer));
+                    cellEl.addEventListener('touchmove', () => clearTimeout(pressTimer));
+
+                    boardElement.appendChild(cellEl);
+                }
+            }
+        }
+
+        // Logical Start: Ensures first click is always an EMPTY (0) cell
+        function placeMines(startR, startC) {
+            let placed = 0;
+            
+            // Check if coordinates are neighbors (including self)
+            const isForbidden = (r, c) => {
+                return Math.abs(r - startR) <= 1 && Math.abs(c - startC) <= 1;
+            };
+
+            while (placed < minesCount) {
+                let r = Math.floor(Math.random() * rows);
+                let c = Math.floor(Math.random() * cols);
+                
+                // Forbidden zone: 3x3 area around first click must be safe
+                if (!board[r][c].isMine && !isForbidden(r, c)) {
+                    board[r][c].isMine = true;
+                    placed++;
+                }
+            }
+
+            // Calculate numbers
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (!board[r][c].isMine) {
+                        board[r][c].neighborMines = countNeighborMines(r, c);
+                    }
+                }
+            }
+        }
+
+        function countNeighborMines(r, c) {
+            let count = 0;
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    let nr = r + dr, nc = c + dc;
+                    if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && board[nr][nc].isMine) {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                seconds++;
+                timerDisplay.textContent = Math.min(seconds, 999).toString().padStart(3, '0');
+            }, 1000);
+        }
+
+        function handleCellClick(r, c) {
+            if (gameOver || board[r][c].revealed || board[r][c].flagged) return;
+
+            if (firstClick) {
+                firstClick = false;
+                placeMines(r, c);
+                startTimer();
+            }
+
+            if (board[r][c].isMine) {
+                revealAllMines();
+                endGame(false);
+                return;
+            }
+
+            revealCell(r, c);
+            checkWin();
+        }
+
+        function handleRightClick(r, c) {
+            if (gameOver || board[r][c].revealed) return;
+            
+            const cell = board[r][c];
+            cell.flagged = !cell.flagged;
+            flaggedCount += cell.flagged ? 1 : -1;
+            mineDisplay.textContent = Math.max(0, minesCount - flaggedCount).toString().padStart(3, '0');
+            
+            updateCellUI(r, c);
+        }
+
+        function revealCell(r, c) {
+            if (r < 0 || r >= rows || c < 0 || c >= cols || board[r][c].revealed || board[r][c].flagged) return;
+
+            board[r][c].revealed = true;
+            revealedCount++;
+            updateCellUI(r, c);
+
+            // If it's a 0, expand neighbors
+            if (board[r][c].neighborMines === 0) {
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        revealCell(r + dr, c + dc);
+                    }
+                }
+            }
+        }
+
+        function updateCellUI(r, c) {
+            const cell = board[r][c];
+            const cellEl = boardElement.children[r * cols + c];
+            
+            if (cell.revealed) {
+                cellEl.classList.add('revealed');
+                cellEl.classList.remove('flagged');
+                if (cell.isMine) {
+                    cellEl.classList.add('mine');
+                    cellEl.textContent = '💣';
+                } else if (cell.neighborMines > 0) {
+                    cellEl.textContent = cell.neighborMines;
+                    cellEl.classList.add('n' + cell.neighborMines);
+                } else {
+                    cellEl.textContent = '';
+                }
+            } else if (cell.flagged) {
+                cellEl.classList.add('flagged');
+                cellEl.textContent = '🚩';
+            } else {
+                cellEl.textContent = '';
+                cellEl.classList.remove('flagged');
+            }
+        }
+
+        function revealAllMines() {
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (board[r][c].isMine) {
+                        board[r][c].revealed = true;
+                        updateCellUI(r, c);
+                    }
+                }
+            }
+        }
+
+        function checkWin() {
+            if (revealedCount === (rows * cols) - minesCount) {
+                endGame(true);
+                // Flag all remaining mines for the user
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        if (board[r][c].isMine && !board[r][c].flagged) {
+                            board[r][c].flagged = true;
+                            updateCellUI(r, c);
+                        }
+                    }
+                }
+                mineDisplay.textContent = '000';
+            }
+        }
+
+        function endGame(isWin) {
+            gameOver = true;
+            clearInterval(timerInterval);
+            statusEmoji.textContent = isWin ? '😎' : '😵';
+
+            // モーダルの表示処理 (盤面の変化を見せるために少し遅延させる)
+            setTimeout(() => {
+                if (isWin) {
+                    modalTitle.innerHTML = "GOD TIER CLEAR<br>✨✨✨";
+                    modalTitle.className = "text-4xl sm:text-5xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-pink-500 to-cyan-400 tracking-wider animate-pulse";
+                    modalContent.className = "bg-slate-900 border-4 border-yellow-400 p-8 rounded-2xl shadow-[0_0_50px_rgba(250,204,21,0.8)] text-center transform scale-95 transition-all duration-300 max-w-md w-full mx-4";
+                    
+                    // 修正: 文字列内でダブルクォーテーションを使うために全体をバッククォート（`）で囲みました
+                    modalMessage.innerHTML = `人類の至宝！天才の所業！！<br><span class="text-sm text-yellow-100">あなたのIQは計り知れません。<br>この偉業は後世に語り継がれるでしょう！</span>`;
+                    modalMessage.className = "text-2xl font-black text-yellow-300 mb-6 leading-relaxed drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]";
+                    
+                    modalSubtitle.textContent = "Legendary Time";
+                    modalTime.className = "font-mono text-5xl font-black text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.8)]";
+                    
+                    modalRestartBtn.textContent = "神の領域をもう一度プレイする";
+                    modalRestartBtn.className = "px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-600 text-white rounded-xl hover:from-yellow-400 hover:to-orange-500 transition-all font-black tracking-widest shadow-[0_0_20px_rgba(250,204,21,0.6)] w-full text-lg animate-bounce";
+                } else {
+                    modalTitle.textContent = "YOU DIED (笑)";
+                    modalTitle.className = "text-4xl sm:text-5xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-purple-800 tracking-widest";
+                    modalContent.className = "bg-black border-4 border-red-700 p-8 rounded-2xl shadow-[0_0_40px_rgba(220,38,38,0.8)] text-center transform scale-95 transition-all duration-300 max-w-md w-full mx-4";
+                    
+                    const trashTalks = [
+                        "もしかして目をつぶってプレイしてました？",
+                        "チンパンジーの方がまだ上手いですね🐒",
+                        "えっ、そこで爆弾踏むんですか！？",
+                        "才能ないですよ、別のゲームしませんか？",
+                        "ハトでももうちょっと粘りますよ？🕊️",
+                        "画面、見えてますか？👓"
+                    ];
+                    const randomTalk = trashTalks[Math.floor(Math.random() * trashTalks.length)];
+                    modalMessage.innerHTML = `ざぁ〜こ♡ ざぁ〜こ♡<br><span class="text-sm mt-2 block text-slate-400">${randomTalk}</span>`;
+                    modalMessage.className = "text-2xl font-black text-red-500 mb-6 leading-relaxed";
+                    
+                    modalSubtitle.textContent = "Waste of Time";
+                    modalTime.className = "font-mono text-4xl font-black text-red-700 drop-shadow-[0_0_10px_rgba(220,38,38,0.6)] line-through opacity-50";
+                    
+                    modalRestartBtn.textContent = "泣きながらやり直す";
+                    modalRestartBtn.className = "px-8 py-3 bg-gradient-to-r from-red-900 to-black text-slate-300 rounded-lg hover:from-red-800 hover:to-slate-900 transition-all font-bold tracking-widest shadow-[0_0_15px_rgba(220,38,38,0.4)] w-full border border-red-900";
+                }
+                
+                modalTime.textContent = timerDisplay.textContent;
+                
+                // Show modal with animation
+                resultModal.classList.remove('hidden');
+                // Trigger reflow to ensure animation plays
+                void resultModal.offsetWidth; 
+                resultModal.classList.add('opacity-100');
+                modalContent.classList.remove('scale-95');
+                modalContent.classList.add('scale-100');
+            }, 800); // 0.8秒遅延
+        }
+
+        // Rules Modal Logic
+        rulesBtn.addEventListener('click', () => {
+            rulesModal.classList.remove('hidden');
+            void rulesModal.offsetWidth;
+            rulesModal.classList.add('opacity-100');
+            rulesContent.classList.remove('scale-95');
+            rulesContent.classList.add('scale-100');
+        });
+
+        function closeRules() {
+            rulesModal.classList.remove('opacity-100');
+            rulesContent.classList.remove('scale-100');
+            rulesContent.classList.add('scale-95');
+            setTimeout(() => {
+                rulesModal.classList.add('hidden');
+            }, 300);
+        }
+
+        closeRulesBtn.addEventListener('click', closeRules);
+        rulesModal.addEventListener('click', (e) => {
+            if (e.target === rulesModal) closeRules();
+        });
+
+        difficultySelect.addEventListener('change', initGame);
+        restartBtn.addEventListener('click', initGame);
+        statusEmoji.addEventListener('click', initGame);
+        modalRestartBtn.addEventListener('click', initGame);
+
+        window.onload = initGame;
+    </script>
+</body>
+</html>

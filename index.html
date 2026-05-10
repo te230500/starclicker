@@ -2,716 +2,117 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Star Clicker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>わたしのゲームばこ</title>
+    
+    <!-- Google Fonts: M PLUS Rounded 1c (Cute rounded font) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .click-active { transform: scale(0.95); transition: transform 0.05s ease; }
-        .click-idle { transform: scale(1); transition: transform 0.2s ease; }
-        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-50px) scale(1.5); } }
-        .particle { position: absolute; pointer-events: none; animation: floatUp 1s ease-out forwards; color: #fbbf24; font-weight: bold; font-size: 1.5rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); z-index: 20; }
-        ::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-track { background: #1e293b; } ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-        body { -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: background 0.5s ease; }
-        
-        /* ボーナス星のアニメーション */
-        @keyframes pulse-glow { 0%, 100% { filter: drop-shadow(0 0 10px rgba(251,191,36,0.8)) scale(1); } 50% { filter: drop-shadow(0 0 25px rgba(251,191,36,1)) scale(1.1); } }
-        .bonus-star { animation: pulse-glow 1.5s infinite ease-in-out; }
-        
-        /* 画面サイズに合わせた星の可変サイズ (スマホで溢れないよう調整) */
-        .star-svg {
-            width: clamp(100px, 25vh, 256px);
-            height: clamp(100px, 25vh, 256px);
-        }
-        
-        /* 各種バフ発動時の背景 */
-        .fever-bg { background: radial-gradient(circle at center, #4c1d95 0%, #0f172a 70%) !important; }
-        .meteor-bg { background: radial-gradient(circle at center, #7f1d1d 0%, #0f172a 70%) !important; }
-        .bargain-bg { background: radial-gradient(circle at center, #064e3b 0%, #0f172a 70%) !important; }
-        
-        /* トースト通知 */
-        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .toast-enter { animation: slideInRight 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-    </style>
-</head>
-<body id="gameBody" class="bg-slate-900 text-slate-100 font-sans h-screen h-[100dvh] overflow-hidden flex flex-col md:flex-row select-none">
-
-    <!-- トースト通知コンテナ -->
-    <div id="toastContainer" class="fixed bottom-20 md:bottom-6 right-4 flex flex-col gap-2 z-50 pointer-events-none"></div>
-
-    <!-- ================= スマホ専用 UI ================= -->
-    <!-- スマホ用: 左上メニューボタン -->
-    <button onclick="toggleMobileMenu()" class="md:hidden fixed top-4 left-4 z-50 bg-slate-800/80 backdrop-blur px-3 py-2 rounded-lg border border-slate-600 text-slate-300 shadow-lg flex items-center gap-2">
-        <span class="text-xl">⚙️</span> <span class="text-xs font-bold">メニュー</span>
-    </button>
-
-    <!-- スマホ用: モバイルメニューパネル -->
-    <div id="mobileMenuPanel" class="hidden md:hidden fixed top-16 left-4 z-50 bg-slate-800/95 backdrop-blur p-3 rounded-lg border border-slate-600 shadow-2xl flex flex-col gap-3 w-48">
-        <button onclick="openSaveModal(); toggleMobileMenu()" class="w-full py-2 bg-blue-800 hover:bg-blue-700 text-blue-100 rounded-lg font-bold shadow-lg border-b-4 border-blue-900 text-sm">📝 じゅもん(保存)</button>
-        <button onclick="openLoadModal(); toggleMobileMenu()" class="w-full py-2 bg-purple-800 hover:bg-purple-700 text-purple-100 rounded-lg font-bold shadow-lg border-b-4 border-purple-900 text-sm">📖 ふっかつ(読込)</button>
-        <button onclick="toggleAutoBuy()" class="auto-buy-btn w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg font-bold shadow-lg border-b-4 border-slate-800 text-sm">🤖 ｱｼｽﾄ:OFF</button>
-    </div>
-
-    <!-- スマホ用: 転生ボタン (下部タブバーのすぐ上) -->
-    <div class="prestige-btn-container hidden md:hidden fixed bottom-20 left-0 w-full px-4 pb-2 z-30 pointer-events-none">
-        <button onclick="openPrestigeModal()" class="w-full py-3 bg-indigo-900 hover:bg-indigo-800 text-indigo-100 rounded-lg font-bold shadow-lg border-b-4 border-indigo-950 flex justify-center items-center gap-2 pointer-events-auto">
-            <span class="text-xl">🌌</span> ビッグバン (転生)
-        </button>
-    </div>
-    <!-- ================================================= -->
-
-    <!-- メイン画面 (完全スクロール不可に修正) -->
-    <div class="flex-1 flex flex-col items-center justify-between p-4 md:p-6 bg-transparent relative border-b md:border-b-0 md:border-r border-slate-700 overflow-hidden pb-16 md:pb-6 z-10" id="mainArea">
-        
-        <!-- ボーナス星 -->
-        <div id="bonusStarElem" onclick="clickBonusStar(event)" class="hidden absolute z-40 cursor-pointer bonus-star transition-opacity duration-300">
-            <div class="text-4xl md:text-6xl drop-shadow-[0_0_15px_#fbbf24]">🌟</div>
-        </div>
-
-        <h1 class="text-2xl md:text-3xl lg:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500 text-center z-10 shrink-0">
-            スタークリッカー
-        </h1>
-        
-        <!-- 動的バフ通知エリア -->
-        <div id="buffContainer" class="min-h-[28px] my-1 z-10 flex flex-col gap-1 items-center shrink-0"></div>
-        
-        <div class="text-center w-full relative z-10 shrink-0 my-auto">
-            <div class="text-4xl md:text-5xl lg:text-6xl font-bold text-yellow-400 break-words drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] leading-tight" id="scoreDisplay">0</div>
-            <div class="text-slate-400 mt-1 text-base md:text-lg font-bold">スター</div>
-            <div class="text-xs md:text-sm text-slate-300 mt-2 bg-slate-800/80 inline-block px-3 py-1 rounded-full border border-slate-600 shadow-inner max-w-full truncate">
-                毎秒: <span id="spsDisplay" class="text-yellow-300 font-bold">0</span> / クリック: <span id="cpcDisplay" class="text-yellow-300 font-bold">1</span>
-            </div>
-            
-            <div class="flex flex-wrap justify-center items-center gap-2 mt-2 min-h-[28px]">
-                <div id="prestigeDisplayContainer" class="hidden px-2 py-1 bg-purple-900/50 border border-purple-500 rounded-full text-purple-200 text-[10px] md:text-xs font-bold shadow-[0_0_10px_rgba(168,85,247,0.3)]">
-                    🌌 転生: +<span id="prestigeBonusDisplay">0</span>%
-                </div>
-                <div id="achieveBonusContainer" class="hidden px-2 py-1 bg-emerald-900/50 border border-emerald-500 rounded-full text-emerald-200 text-[10px] md:text-xs font-bold shadow-[0_0_10px_rgba(16,185,129,0.3)]">
-                    🏆 実績: +<span id="achieveBonusDisplay">0</span>%
-                </div>
-                <button id="prestigeShopBtn" onclick="openPrestigeShopModal()" class="hidden px-2 py-1 bg-fuchsia-900/80 hover:bg-fuchsia-800 border border-fuchsia-400 rounded-full text-fuchsia-100 text-[10px] md:text-xs font-bold shadow-[0_0_10px_rgba(217,70,239,0.4)] transition-colors">
-                    ✨ チリ交換所
-                </button>
-            </div>
-        </div>
-
-        <div id="clickTarget" class="cursor-pointer click-idle drop-shadow-[0_0_15px_rgba(251,191,36,0.5)] hover:drop-shadow-[0_0_25px_rgba(251,191,36,0.8)] rounded-full my-auto z-10 shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#fbbf24" class="star-svg">
-                <path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clip-rule="evenodd" />
-            </svg>
-        </div>
-
-        <!-- PC専用 ボタン群 -->
-        <div class="hidden md:flex flex-col gap-2 w-full max-w-md z-10 shrink-0 mt-auto">
-            <div class="flex gap-2 w-full">
-                <button onclick="openAchieveModal()" class="flex-1 py-2 px-1 bg-emerald-800 hover:bg-emerald-700 text-emerald-100 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-emerald-900 justify-center items-center gap-1 text-sm">
-                    <span>🏆</span> 実績確認
-                </button>
-                <button onclick="openSaveModal()" class="flex-1 py-2 px-1 bg-blue-800 hover:bg-blue-700 text-blue-100 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-blue-900 flex justify-center items-center gap-1 text-sm">
-                    <span>📝</span> じゅもん
-                </button>
-                <button onclick="openLoadModal()" class="flex-1 py-2 px-1 bg-purple-800 hover:bg-purple-700 text-purple-100 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-purple-900 flex justify-center items-center gap-1 text-sm">
-                    <span>📖</span> ふっかつ
-                </button>
-                <button onclick="toggleAutoBuy()" class="auto-buy-btn flex-1 py-2 px-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-slate-800 flex justify-center items-center gap-1 text-sm">
-                    <span>🤖</span> ｱｼｽﾄ:OFF
-                </button>
-            </div>
-            <div class="prestige-btn-container hidden w-full">
-                <button onclick="openPrestigeModal()" class="w-full py-2 bg-indigo-900 hover:bg-indigo-800 text-indigo-100 rounded-lg font-bold shadow-lg transition-transform active:scale-95 border-b-4 border-indigo-950 flex justify-center items-center gap-2">
-                    <span>🌌</span> ビッグバン (転生)
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ショップ画面 -->
-    <div id="shopPanel" class="fixed inset-0 bg-slate-900 z-40 translate-y-full transition-transform duration-300 flex flex-col md:relative md:w-[400px] lg:w-[450px] md:translate-y-0 md:z-0 md:h-full md:border-l md:border-slate-700 shadow-[-5px_0_20px_rgba(0,0,0,0.5)] md:shadow-none">
-        <div class="md:hidden flex justify-between items-center p-4 border-b border-slate-700 bg-slate-900">
-            <h2 class="text-xl font-bold text-slate-300">アップグレード施設</h2>
-            <button onclick="toggleShop()" class="text-3xl text-slate-400 hover:text-white px-2">&times;</button>
-        </div>
-        <h2 class="hidden md:block text-xl font-bold text-slate-300 p-4 border-b border-slate-700 sticky top-0 bg-slate-900 z-10 shrink-0">
-            アップグレード
-        </h2>
-        <div id="shopContainer" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 pb-24 md:pb-4"></div>
-    </div>
-
-    <!-- スマホ用下部タブバー -->
-    <div class="fixed bottom-0 w-full h-16 bg-slate-800 border-t border-slate-600 flex md:hidden z-30 shadow-[0_-5px_15px_rgba(0,0,0,0.3)]">
-        <button onclick="openAchieveModal()" class="flex-1 flex flex-col items-center justify-center text-slate-400 hover:text-emerald-400 active:bg-slate-700 transition-colors border-r border-slate-700">
-            <span class="text-2xl mb-1 drop-shadow-[0_0_5px_rgba(16,185,129,0.5)]">🏆</span>
-            <span class="text-[10px] font-bold tracking-wider">実績</span>
-        </button>
-        <button onclick="toggleShop()" class="flex-1 flex flex-col items-center justify-center text-slate-400 hover:text-yellow-400 active:bg-slate-700 transition-colors">
-            <span class="text-2xl mb-1 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]">🛒</span>
-            <span class="text-[10px] font-bold tracking-wider">ショップ</span>
-        </button>
-    </div>
-
-    <!-- 各種モーダル -->
-    <!-- 実績モーダル -->
-    <div id="achieveModal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-        <div class="bg-slate-900 p-6 rounded-xl border-4 border-emerald-800 max-w-lg w-full shadow-[0_0_20px_rgba(16,185,129,0.3)] relative flex flex-col max-h-[80vh]">
-            <h3 class="text-xl md:text-2xl font-black mb-1 text-emerald-400 text-center tracking-widest">実績・アチーブメント</h3>
-            <p class="text-center text-[10px] md:text-xs text-slate-400 mb-2">実績を解除するごとに、全体の生産量が +2% されます。</p>
-            <div class="text-center mb-4 text-emerald-200 border-b border-slate-700 pb-3 font-bold text-sm md:text-base">
-                解除済み: <span id="achieveCountDisplay" class="text-2xl text-white">0</span> / <span id="achieveMaxDisplay">0</span>
-            </div>
-            <div id="achieveContainer" class="flex-1 overflow-y-auto pr-2 flex flex-col gap-2 mb-4"></div>
-            <button onclick="document.getElementById('achieveModal').classList.add('hidden')" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold py-3 rounded-lg transition-colors border-b-4 border-slate-800 active:border-b-0 active:translate-y-1 mt-auto shrink-0">とじる</button>
-        </div>
-    </div>
-
-    <!-- じゅもんモーダル -->
-    <div id="spellModal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div class="bg-slate-800 p-6 rounded-xl border-4 border-slate-600 max-w-md w-full shadow-2xl relative flex flex-col max-h-[80vh]"><h3 id="modalTitle" class="text-xl md:text-2xl font-bold mb-4 text-yellow-400 text-center tracking-widest shrink-0">ふっかつのじゅもん</h3><textarea id="spellInput" class="w-full flex-1 bg-slate-900 border-2 border-slate-700 text-slate-100 p-4 rounded-lg min-h-[8rem] text-sm md:text-base font-mono resize-none focus:outline-none focus:border-yellow-500 shadow-inner leading-relaxed break-all"></textarea><p id="spellMessage" class="text-sm mt-3 h-5 text-center font-bold shrink-0"></p><div class="flex gap-3 mt-4 shrink-0"><button id="spellActionBtn" class="flex-1 bg-yellow-600 hover:bg-yellow-500 text-slate-900 font-extrabold py-3 rounded-lg transition-colors border-b-4 border-yellow-800 active:border-b-0 active:translate-y-1 text-sm md:text-base">コピーする</button><button id="spellCloseBtn" class="flex-1 bg-slate-600 hover:bg-slate-500 text-slate-100 font-bold py-3 rounded-lg transition-colors border-b-4 border-slate-800 active:border-b-0 active:translate-y-1 text-sm md:text-base">とじる</button></div></div></div>
-    <!-- 転生モーダル -->
-    <div id="prestigeModal" class="hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4 backdrop-blur-md"><div class="bg-indigo-950 p-6 md:p-8 rounded-xl border-4 border-indigo-500 max-w-lg w-full shadow-[0_0_30px_rgba(99,102,241,0.5)] relative text-center"><h3 class="text-2xl md:text-3xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-purple-400">ビッグバンを起こす</h3><p class="text-indigo-200 mb-6 text-xs md:text-sm">現在の宇宙を破壊し、新たな宇宙を創造します。<br>スターと施設は失われますが、永遠の力を得ます。</p><div class="bg-indigo-900/50 p-4 rounded-lg border border-indigo-700 mb-6"><div class="text-slate-300 mb-1 text-sm">獲得予定の転生ポイント</div><div class="text-4xl md:text-5xl font-black text-fuchsia-400 mb-2">+<span id="pendingPrestigeDisplay">0</span></div><div class="text-[10px] md:text-xs text-indigo-300">※1ポイントにつき生産量+1%</div></div><p id="prestigeWarning" class="text-red-400 text-sm font-bold mb-6 hidden">もっとスターを集める必要があります。</p><div class="flex gap-3 md:gap-4"><button id="doPrestigeBtn" onclick="doPrestige()" class="flex-1 bg-fuchsia-700 hover:bg-fuchsia-600 text-white font-extrabold py-3 md:py-4 rounded-lg border-b-4 border-fuchsia-900 active:border-b-0 active:translate-y-1">転生する</button><button onclick="closePrestigeModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold py-3 md:py-4 rounded-lg border-b-4 border-slate-800 active:border-b-0 active:translate-y-1">やめる</button></div></div></div>
-    <!-- チリ交換所モーダル -->
-    <div id="prestigeShopModal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div class="bg-slate-900 p-6 rounded-xl border-4 border-fuchsia-800 max-w-lg w-full shadow-[0_0_20px_rgba(217,70,239,0.3)] relative flex flex-col max-h-[80vh]"><h3 class="text-xl md:text-2xl font-black mb-1 text-fuchsia-400 text-center tracking-widest shrink-0">宇宙のチリ交換所</h3><p class="text-center text-[10px] md:text-xs text-slate-400 mb-4 shrink-0">ポイントを消費すると、生産ボーナス(+1%)はその分減少します。</p><div class="text-center mb-4 text-slate-300 border-b border-slate-700 pb-4 text-sm md:text-base shrink-0">所持チリ: <span id="currentChiriDisplay" class="text-2xl md:text-3xl font-bold text-fuchsia-300 mx-1 md:mx-2">0</span> pt</div><div id="prestigeShopContainer" class="flex-1 flex flex-col gap-3 mb-6 overflow-y-auto pr-2"></div><button onclick="document.getElementById('prestigeShopModal').classList.add('hidden')" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold py-3 rounded-lg border-b-4 border-slate-800 active:border-b-0 active:translate-y-1 shrink-0">とじる</button></div></div>
-
     <script>
-        // --- 状態管理と定義 ---
-        let isShopOpen = false;
-        function toggleShop() {
-            const shopPanel = document.getElementById('shopPanel');
-            isShopOpen = !isShopOpen;
-            shopPanel.classList.toggle('translate-y-full', !isShopOpen);
-        }
-
-        let isMobileMenuOpen = false;
-        function toggleMobileMenu() {
-            isMobileMenuOpen = !isMobileMenuOpen;
-            document.getElementById('mobileMenuPanel').classList.toggle('hidden', !isMobileMenuOpen);
-        }
-
-        let state = {
-            score: 0, starsPerClick: 1, starsPerSecond: 0,
-            totalClicks: 0, lifetimeStars: 0, prestigePoints: 0, puFlags: 0,
-            achieveFlags: 0, bonusClicks: 0, autoBuy: false,
-            spsBuff: 1, clickBuff: 1, discountBuff: 1 
-        };
-
-        const upgrades = [
-            { id: 'cursor', name: '流れ星', description: 'クリック獲得量 +1', baseCost: 15, costMultiplier: 1.15, count: 0, effectType: 'click', effectValue: 1, icon: '☄️' },
-            { id: 'fairy', name: '星の妖精', description: '毎秒 1 スター', baseCost: 100, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 1, icon: '🧚' },
-            { id: 'factory', name: '星の工場', description: '毎秒 10 スター', baseCost: 1200, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 10, icon: '🏭' },
-            { id: 'mine', name: '星の鉱山', description: '毎秒 100 スター', baseCost: 15000, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 100, icon: '⛏️' },
-            { id: 'galaxy', name: '銀河開拓', description: '毎秒 1,000 スター', baseCost: 200000, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 1000, icon: '🌌' },
-            { id: 'blackhole', name: 'ブラックホール抽出器', description: '毎秒 1.2万 スター', baseCost: 3e6, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 12000, icon: '🕳️' },
-            { id: 'multiverse', name: '並行宇宙ゲート', description: '毎秒 15万 スター', baseCost: 5e7, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 150000, icon: '🌀' },
-            { id: 'nebula', name: '星雲創造エンジン', description: '毎秒 200万 スター', baseCost: 1e9, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 2e6, icon: '🎇' },
-            { id: 'quasar', name: 'クエーサー変換器', description: '毎秒 3000万 スター', baseCost: 25e9, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 3e7, icon: '💫' },
-            { id: 'supernova', name: '超新星オーブン', description: '毎秒 5億 スター', baseCost: 8e11, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 5e8, icon: '💥' },
-            { id: 'singularity', name: '次元の特異点', description: '毎秒 120億 スター', baseCost: 3e13, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 1.2e10, icon: '⚛️' },
-            { id: 'world_tree', name: '宇宙樹ユグドラシル', description: '毎秒 4000億 スター', baseCost: 1e15, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 4e11, icon: '🌳' },
-            { id: 'dyson', name: 'オメガ・ダイソン球', description: '毎秒 15兆 スター', baseCost: 5e16, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 1.5e13, icon: '⚙️' },
-            { id: 'god', name: '創造神の杖', description: '毎秒 800兆 スター', baseCost: 2e18, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 8e14, icon: '🔱' },
-            { id: 'galaxy_sim', name: '銀河系シミュレーター', description: '毎秒 1京 スター', baseCost: 5e19, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 1e16, icon: '💻' },
-            { id: 'multiverse_emp', name: '多次元帝国', description: '毎秒 100京 スター', baseCost: 8e20, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 1e18, icon: '👑' },
-            { id: 'cosmic_mind', name: '宇宙意識の目覚め', description: '毎秒 80垓 スター', baseCost: 1e24, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 8e21, icon: '👁️' },
-            { id: 'akashic', name: 'アカシックレコード', description: '毎秒 3000垓 スター', baseCost: 5e25, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 3e23, icon: '📚' },
-            { id: 'theory_everything', name: '万物の理論', description: '毎秒 40𥝱 スター', baseCost: 8e27, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 4e25, icon: '📜' },
-            { id: 'big_bang', name: 'ビッグバン・トリガー', description: '毎秒 400𥝱 スター', baseCost: 1e29, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 4e26, icon: '🎆' },
-            { id: 'transcendence', name: '概念の超越', description: '毎秒 15穣 スター', baseCost: 5e31, costMultiplier: 1.15, count: 0, effectType: 'auto', effectValue: 1.5e29, icon: '🌌' }
-        ];
-
-        const prestigeUpgradesDef = [
-            { id: 'pu0', name: '指先の星屑', desc: '初期クリック獲得量 +10', cost: 1, icon: '✨' },
-            { id: 'pu1', name: '重力共鳴', desc: '自動生産からクリックへの上乗せ率 1%→3%', cost: 5, icon: '🌀' },
-            { id: 'pu2', name: '宇宙の理', desc: '通常施設のコスト上昇率 1.15倍→1.10倍に緩和', cost: 15, icon: '⚖️' },
-            { id: 'pu3', name: '星の導き', desc: 'ボーナス星の出現までの待ち時間が半減する', cost: 50, icon: '🌠' },
-            { id: 'pu4', name: '実績の探求者', desc: '実績1つあたりのボーナスが +2% から +3% に増加', cost: 100, icon: '🏅' },
-            { id: 'pu5', name: 'ビッグクランチ', desc: 'すべての生産量がさらに 2倍 になる', cost: 500, icon: '🌌' },
-            { id: 'pu6', name: '古代星の遺物', desc: '通常施設のコスト上昇率が 1.10倍→1.05倍 にさらに緩和', cost: 5000, icon: '🏺' },
-            { id: 'pu7', name: '並行世界の知識', desc: 'すべての生産量がさらに 5倍 になる', cost: 50000, icon: '🧠' },
-            { id: 'pu8', name: '黄金の指先', desc: 'クリック獲得量への上乗せ率がさらに +5% される', cost: 200000, icon: '👑' },
-            { id: 'pu9', name: '不屈の精神', desc: 'ボーナス星のバフ効果時間が 1.5倍 になる', cost: 1000000, icon: '⏳' },
-            { id: 'pu10', name: '神々の遊び', desc: 'すべての生産量がさらに 10倍 になる', cost: 5000000, icon: '🎲' },
-            { id: 'pu11', name: '真理の扉', desc: '通常施設のコスト上昇率が 1.05倍→1.02倍 に究極緩和', cost: 20000000, icon: '🚪' }
-        ];
-
-        const achievementsDef = [
-            { id: 'clicks100', name: '駆け出しクリッカー', desc: '星を 100回 クリック', type: 'clicks', req: 100, icon: '🖱️' },
-            { id: 'clicks1000', name: '星叩きのプロ', desc: '星を 1,000回 クリック', type: 'clicks', req: 1000, icon: '👆' },
-            { id: 'stars10k', name: '星屑の長者', desc: '累計 1万 スター', type: 'lifetime', req: 1e4, icon: '💰' },
-            { id: 'stars1m', name: 'ミリオン・スター', desc: '累計 100万 スター', type: 'lifetime', req: 1e6, icon: '👑' },
-            { id: 'stars1b', name: 'ビリオン・スター', desc: '累計 10億 スター', type: 'lifetime', req: 1e9, icon: '💎' },
-            { id: 'stars1t', name: 'トリリオン・スター', desc: '累計 1兆 スター', type: 'lifetime', req: 1e12, icon: '🪐' },
-            { id: 'stars1q', name: 'クアドリリオン・スター', desc: '累計 1京 スター', type: 'lifetime', req: 1e15, icon: '♾️' },
-            { id: 'stars1qui', name: 'クィンティリオン・スター', desc: '累計 1垓 スター', type: 'lifetime', req: 1e20, icon: '🌌' },
-            { id: 'stars1s', name: 'セクスティリオン・スター', desc: '累計 1𥝱 スター', type: 'lifetime', req: 1e24, icon: '📜' },
-            { id: 'stars1sep', name: 'セプティリオン・スター', desc: '累計 1穣 スター', type: 'lifetime', req: 1e28, icon: '🎇' },
-            { id: 'sps1k', name: '光速の稼ぎ', desc: '毎秒 1,000 スター', type: 'sps', req: 1e3, icon: '⚡' },
-            { id: 'sps1m', name: '超光速の稼ぎ', desc: '毎秒 100万 スター', type: 'sps', req: 1e6, icon: '🚀' },
-            { id: 'cursor50', name: '流星群', desc: '「流れ星」を 50個 所有', type: 'upgrade', target: 0, req: 50, icon: '☄️' },
-            { id: 'galaxy1', name: '宇宙への第一歩', desc: '「銀河開拓」を 1個 所有', type: 'upgrade', target: 4, req: 1, icon: '🔭' },
-            { id: 'singularity1', name: '究極の到達点', desc: '「次元の特異点」を 1個 所有', type: 'upgrade', target: 10, req: 1, icon: '⚛️' },
-            { id: 'god1', name: '創造神への謁見', desc: '「創造神の杖」を 1個 所有', type: 'upgrade', target: 13, req: 1, icon: '🔱' },
-            { id: 'transcendence1', name: '真理の到達者', desc: '「概念の超越」を 1個 所有', type: 'upgrade', target: 20, req: 1, icon: '👁️' },
-            { id: 'bonus1', name: '幸運の星', desc: '「ボーナス星」を 1回 クリック', type: 'bonus', req: 1, icon: '🌟' },
-            { id: 'bonus10', name: '星の愛し子', desc: '「ボーナス星」を 10回 クリック', type: 'bonus', req: 10, icon: '🌠' }
-        ];
-
-        // --- フォーマット関数 ---
-        function formatNumber(num) { 
-            if (num < 100000000) {
-                return Math.floor(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); 
-            }
-            const units = ["", "万", "億", "兆", "京", "垓", "𥝱", "穣", "溝", "澗", "正", "載", "極", "恒河沙", "阿僧祇", "那由他", "不可思議", "無量大数"];
-            let unitIndex = Math.floor(Math.log10(num) / 4);
-            unitIndex = Math.min(unitIndex, units.length - 1); 
-            
-            const value = num / Math.pow(10, unitIndex * 4);
-            let formattedValue = value.toFixed(3).replace(/\.?0+$/, '');
-            return formattedValue + units[unitIndex];
-        }
-
-        function getMultiplier(count) { let mult = 1; if(count>=10) mult*=2; if(count>=25) mult*=2; if(count>=50) mult*=2; if(count>=100) mult*=2; return mult; }
-        
-        function showToast(title, message, icon) {
-            const container = document.getElementById('toastContainer');
-            const toast = document.createElement('div');
-            toast.className = 'bg-slate-800 border-l-4 border-emerald-500 rounded p-3 shadow-lg flex items-center gap-3 toast-enter pointer-events-auto';
-            toast.innerHTML = `<div class="text-2xl">${icon}</div><div><div class="text-emerald-400 font-bold text-xs">実績解除！</div><div class="text-white text-sm font-bold">${title}</div><div class="text-slate-400 text-[10px] hidden md:block">${message}</div></div>`;
-            container.appendChild(toast);
-            setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(100%)'; toast.style.transition = 'all 0.5s ease'; setTimeout(() => toast.remove(), 500); }, 4000);
-        }
-
-        // --- コアロジック ---
-        function calculateCost(upgrade) {
-            const hasDiscount1 = (state.puFlags & (1 << 2)) !== 0; 
-            const hasDiscount2 = (state.puFlags & (1 << 6)) !== 0; 
-            const hasDiscount3 = (state.puFlags & (1 << 11)) !== 0; 
-            
-            let multiplier = upgrade.costMultiplier;
-            if (hasDiscount3) multiplier = 1.02;
-            else if (hasDiscount2) multiplier = 1.05;
-            else if (hasDiscount1) multiplier = 1.10;
-            
-            return Math.floor(upgrade.baseCost * Math.pow(multiplier, upgrade.count) * state.discountBuff);
-        }
-
-        function getAchievedCount() {
-            let count = 0;
-            for (let i = 0; i < achievementsDef.length; i++) { if ((state.achieveFlags & (1 << i)) !== 0) count++; }
-            return count;
-        }
-
-        function recalculateStats() {
-            const hasClickBonus = (state.puFlags & (1 << 0)) !== 0;
-            const hasSynergyBonus = (state.puFlags & (1 << 1)) !== 0;
-            const hasAchieveBoost = (state.puFlags & (1 << 4)) !== 0; 
-            const hasDoubleBoost = (state.puFlags & (1 << 5)) !== 0;  
-            const hasHyperBoost = (state.puFlags & (1 << 7)) !== 0;  
-            const hasGoldenFinger = (state.puFlags & (1 << 8)) !== 0; 
-            const hasGodBoost = (state.puFlags & (1 << 10)) !== 0; 
-
-            let baseSpc = hasClickBonus ? 11 : 1; 
-            let newSps = 0;
-
-            upgrades.forEach(u => {
-                const mult = getMultiplier(u.count);
-                if (u.effectType === 'click') baseSpc += (u.effectValue * u.count) * mult;
-                else if (u.effectType === 'auto') newSps += (u.effectValue * u.count) * mult;
-            });
-
-            let synergyRate = hasSynergyBonus ? 0.03 : 0.01;
-            if (hasGoldenFinger) synergyRate += 0.05;
-            const synergy = newSps * synergyRate;
-            
-            const prestigeMultiplier = 1 + (state.prestigePoints * 0.01);
-            
-            const achieveRate = hasAchieveBoost ? 0.03 : 0.02;
-            const achievedCount = getAchievedCount();
-            const achieveMultiplier = 1 + (achievedCount * achieveRate);
-
-            let totalStaticBoost = hasDoubleBoost ? 2 : 1;
-            if (hasHyperBoost) totalStaticBoost *= 5;
-            if (hasGodBoost) totalStaticBoost *= 10;
-            
-            state.starsPerClick = (baseSpc + synergy) * prestigeMultiplier * achieveMultiplier * totalStaticBoost * state.clickBuff;
-            state.starsPerSecond = newSps * prestigeMultiplier * achieveMultiplier * totalStaticBoost * state.spsBuff;
-        }
-
-        function updateDisplay() {
-            document.getElementById('scoreDisplay').innerText = formatNumber(state.score);
-            document.getElementById('spsDisplay').innerText = formatNumber(state.starsPerSecond);
-            document.getElementById('cpcDisplay').innerText = formatNumber(state.starsPerClick);
-
-            const pContainer = document.getElementById('prestigeDisplayContainer');
-            const aContainer = document.getElementById('achieveBonusContainer');
-            
-            if (state.prestigePoints > 0 || state.puFlags > 0) {
-                pContainer.classList.remove('hidden'); document.getElementById('prestigeShopBtn').classList.remove('hidden');
-                document.getElementById('prestigeBonusDisplay').innerText = formatNumber(state.prestigePoints);
-            }
-            if (state.lifetimeStars > 1000) {
-                document.querySelectorAll('.prestige-btn-container').forEach(el => el.classList.remove('hidden'));
-            }
-
-            const achievedCount = getAchievedCount();
-            if (achievedCount > 0) {
-                const achieveRate = (state.puFlags & (1 << 4)) !== 0 ? 3 : 2;
-                aContainer.classList.remove('hidden');
-                document.getElementById('achieveBonusDisplay').innerText = achievedCount * achieveRate;
-            }
-
-            upgrades.forEach((upgrade, index) => {
-                const btn = document.getElementById(`upgrade-btn-${index}`);
-                const costDisplay = document.getElementById(`upgrade-cost-${index}`);
-                const multDisplay = document.getElementById(`upgrade-mult-${index}`);
-                const currentCost = calculateCost(upgrade);
-                
-                if(costDisplay) {
-                    costDisplay.innerText = formatNumber(currentCost);
-                    if (state.discountBuff < 1) costDisplay.className = "text-emerald-400 font-bold";
-                    else costDisplay.className = "";
-                }
-                if(multDisplay) {
-                    const mult = getMultiplier(upgrade.count);
-                    multDisplay.innerText = mult > 1 ? `( ${mult}倍!)` : '';
-                }
-
-                if (btn) {
-                    if (state.score >= currentCost) { btn.classList.remove('opacity-50', 'bg-slate-800'); btn.classList.add('bg-slate-700', 'hover:bg-slate-600', 'cursor-pointer'); }
-                    else { btn.classList.add('opacity-50', 'bg-slate-800'); btn.classList.remove('bg-slate-700', 'hover:bg-slate-600', 'cursor-pointer'); }
-                }
-            });
-        }
-
-        function renderShop() {
-            const container = document.getElementById('shopContainer'); container.innerHTML = '';
-            upgrades.forEach((u, i) => {
-                const btn = document.createElement('div'); btn.id = `upgrade-btn-${i}`; btn.className = `flex items-center justify-between p-3 rounded-lg border border-slate-600 transition-colors duration-200 select-none`;
-                const effectText = u.effectType === 'click' ? `クリック +${formatNumber(u.effectValue)}` : `毎秒 +${formatNumber(u.effectValue)}`;
-                btn.innerHTML = `
-                    <div class="flex items-center gap-3 overflow-hidden">
-                        <div class="text-3xl shrink-0">${u.icon}</div>
-                        <div class="min-w-0">
-                            <div class="font-bold text-base md:text-lg truncate flex items-center">${u.name} <span id="upgrade-mult-${i}" class="text-green-400 font-bold ml-1 text-xs md:text-sm whitespace-nowrap"></span></div>
-                            <div class="text-sm text-yellow-400 font-mono font-bold truncate">Cost: <span id="upgrade-cost-${i}">${formatNumber(calculateCost(u))}</span></div>
-                            <div class="text-[10px] md:text-xs text-slate-400 truncate w-full pr-2">基本: ${effectText}</div>
-                        </div>
-                    </div>
-                    <div class="text-2xl md:text-3xl font-black text-slate-400 bg-slate-900 px-3 py-1 rounded shrink-0 shadow-inner"><span id="upgrade-count-${i}">${u.count}</span></div>
-                `;
-                btn.addEventListener('click', () => {
-                    const cost = calculateCost(u);
-                    if (state.score >= cost) {
-                        state.score -= cost; u.count++; document.getElementById(`upgrade-count-${i}`).innerText = u.count;
-                        recalculateStats(); updateDisplay(); checkAchievements();
-                        btn.style.transform = 'scale(0.96)'; setTimeout(() => btn.style.transform = 'scale(1)', 100);
-                    }
-                });
-                container.appendChild(btn);
-            });
-            updateDisplay();
-        }
-
-        // --- 実績システム ---
-        function checkAchievements() {
-            achievementsDef.forEach((achieve, index) => {
-                if ((state.achieveFlags & (1 << index)) !== 0) return;
-
-                let isUnlocked = false;
-                switch (achieve.type) {
-                    case 'clicks': isUnlocked = state.totalClicks >= achieve.req; break;
-                    case 'lifetime': isUnlocked = state.lifetimeStars >= achieve.req; break;
-                    case 'sps': isUnlocked = (state.starsPerSecond / state.spsBuff) >= achieve.req; break; 
-                    case 'upgrade': isUnlocked = upgrades[achieve.target].count >= achieve.req; break;
-                    case 'bonus': isUnlocked = state.bonusClicks >= achieve.req; break;
-                }
-
-                if (isUnlocked) {
-                    state.achieveFlags |= (1 << index);
-                    showToast(achieve.name, achieve.desc, achieve.icon);
-                    recalculateStats();
-                    updateDisplay();
-                }
-            });
-        }
-
-        function openAchieveModal() {
-            const container = document.getElementById('achieveContainer'); container.innerHTML = '';
-            document.getElementById('achieveMaxDisplay').innerText = achievementsDef.length;
-            document.getElementById('achieveCountDisplay').innerText = getAchievedCount();
-
-            achievementsDef.forEach((a, i) => {
-                const isUnlocked = (state.achieveFlags & (1 << i)) !== 0;
-                const div = document.createElement('div');
-                div.className = `flex items-center gap-3 p-3 rounded-lg border ${isUnlocked ? 'bg-emerald-900/30 border-emerald-600' : 'bg-slate-800/50 border-slate-700 opacity-60 grayscale'}`;
-                div.innerHTML = `<div class="text-3xl shrink-0">${isUnlocked ? a.icon : '❓'}</div><div><div class="font-bold ${isUnlocked ? 'text-emerald-300' : 'text-slate-400'}">${isUnlocked ? a.name : '未解除の実績'}</div><div class="text-[10px] md:text-xs text-slate-300">${isUnlocked ? a.desc : '条件を満たすと解除されます。'}</div></div>`;
-                container.appendChild(div);
-            });
-
-            const achieveRate = (state.puFlags & (1 << 4)) !== 0 ? 3 : 2;
-            const descElem = document.querySelector('#achieveModal p');
-            if(descElem) descElem.innerText = `実績を解除するごとに、全体の生産量が +${achieveRate}% されます。`;
-            document.getElementById('achieveModal').classList.remove('hidden');
-        }
-
-        // --- ボーナス星 ---
-        let bonusTimeoutId;
-        let hideBonusTimeoutId;
-        let isBonusClickable = false;
-        
-        function scheduleNextBonus() {
-            clearTimeout(bonusTimeoutId);
-            clearTimeout(hideBonusTimeoutId);
-            const hasFastBonus = (state.puFlags & (1 << 3)) !== 0; 
-            let delay = (Math.random() * 75 + 45) * 1000;
-            if (hasFastBonus) delay /= 2;
-            bonusTimeoutId = setTimeout(spawnBonusStar, delay);
-        }
-
-        function spawnBonusStar() {
-            const star = document.getElementById('bonusStarElem');
-            star.style.top = `${Math.random() * 70 + 10}%`;
-            star.style.left = `${Math.random() * 70 + 10}%`;
-            star.classList.remove('hidden');
-            isBonusClickable = true;
-            requestAnimationFrame(() => { star.style.opacity = '1'; });
-            clearTimeout(hideBonusTimeoutId);
-            hideBonusTimeoutId = setTimeout(() => { hideBonusStar(true); }, 12000);
-        }
-
-        function hideBonusStar(scheduleNext) {
-            isBonusClickable = false;
-            const star = document.getElementById('bonusStarElem');
-            star.style.opacity = '0';
-            setTimeout(() => { star.classList.add('hidden'); if (scheduleNext) scheduleNextBonus(); }, 300);
-        }
-
-        let activeBuffs = {}; 
-        function activateBuff(type, mult, durationSec, text, colorClass, bgClass) {
-            if (activeBuffs[type]) {
-                clearTimeout(activeBuffs[type].timerId);
-                const oldElem = document.getElementById(`buff-${type}`);
-                if (oldElem) oldElem.remove();
-            }
-
-            state[`${type}Buff`] = mult;
-            recalculateStats();
-            updateDisplay();
-            
-            if (bgClass) document.getElementById('gameBody').classList.add(bgClass);
-
-            const container = document.getElementById('buffContainer');
-            const buffElem = document.createElement('div');
-            buffElem.id = `buff-${type}`;
-            buffElem.className = `px-3 py-1 rounded-full border border-slate-500 font-bold text-xs md:text-sm shadow-lg ${colorClass} bg-slate-900/90 animate-pulse`;
-            buffElem.innerText = text;
-            container.appendChild(buffElem);
-
-            const timerId = setTimeout(() => {
-                state[`${type}Buff`] = 1;
-                recalculateStats();
-                updateDisplay();
-                if (bgClass) document.getElementById('gameBody').classList.remove(bgClass);
-                buffElem.remove();
-                delete activeBuffs[type];
-            }, durationSec * 1000);
-
-            activeBuffs[type] = { timerId };
-        }
-
-        function clickBonusStar(e) {
-            e.stopPropagation(); 
-            if (!isBonusClickable) return; 
-
-            clearTimeout(hideBonusTimeoutId);
-            hideBonusStar(true); 
-
-            state.bonusClicks++;
-            checkAchievements();
-
-            const durationMult = (state.puFlags & (1 << 9)) !== 0 ? 1.5 : 1;
-            const rand = Math.random();
-            
-            if (rand < 0.40) {
-                const gain = Math.max(100, state.starsPerSecond * 120);
-                state.score += gain; state.lifetimeStars += gain;
-                createParticle(e.clientX, e.clientY, `ラッキースター! +${formatNumber(gain)}`, '#f472b6'); 
-                updateDisplay();
-            } else if (rand < 0.70) {
-                activateBuff('sps', 7, 13 * durationMult, '🌟 スターシャワー発動中！ (自動生産 x7)', 'text-fuchsia-400', 'fever-bg');
-            } else if (rand < 0.85) {
-                activateBuff('click', 777, 13 * durationMult, '☄️ メテオストライク！ (クリック x777)', 'text-red-400', 'meteor-bg');
-            } else if (rand < 0.95) {
-                activateBuff('discount', 0.5, 30 * durationMult, '🛒 バーゲンセール！ (コスト半額)', 'text-emerald-400', 'bargain-bg');
-            } else {
-                const gain = Math.max(1000, state.starsPerSecond * 600);
-                state.score += gain; state.lifetimeStars += gain;
-                createParticle(e.clientX, e.clientY, `超新星爆発!! +${formatNumber(gain)}`, '#fb923c'); 
-                updateDisplay();
-            }
-            scheduleNextBonus();
-        }
-
-        // --- クリック処理 ---
-        function createParticle(x, y, textVal, colorVal = '#fbbf24') {
-            const p = document.createElement('div'); p.className = 'particle'; 
-            p.innerText = textVal || `+${formatNumber(state.starsPerClick)}`;
-            p.style.color = colorVal;
-            p.style.left = `${x + (Math.random() - 0.5) * 40}px`; p.style.top = `${y + (Math.random() - 0.5) * 40}px`;
-            document.body.appendChild(p); setTimeout(() => p.remove(), 1000);
-        }
-
-        const clickTarget = document.getElementById('clickTarget');
-        function handleClick(e) {
-            state.score += state.starsPerClick; state.lifetimeStars += state.starsPerClick; state.totalClicks++;
-            clickTarget.classList.remove('click-idle'); clickTarget.classList.add('click-active');
-            let cx = e.clientX, cy = e.clientY;
-            if (e.touches && e.touches.length > 0) { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
-            else if (cx === undefined) { const r = clickTarget.getBoundingClientRect(); cx = r.left + r.width/2; cy = r.top + r.height/2; }
-            createParticle(cx, cy); updateDisplay();
-            if (state.totalClicks % 10 === 0) checkAchievements(); 
-            setTimeout(() => { clickTarget.classList.remove('click-active'); clickTarget.classList.add('click-idle'); }, 50);
-        }
-        clickTarget.addEventListener('mousedown', handleClick);
-        clickTarget.addEventListener('touchstart', (e) => { e.preventDefault(); handleClick(e); }, { passive: false });
-
-        // --- オート購入アシスト ---
-        function toggleAutoBuy() {
-            state.autoBuy = !state.autoBuy;
-            document.querySelectorAll('.auto-buy-btn').forEach(btn => {
-                if (state.autoBuy) {
-                    btn.classList.replace('bg-slate-700', 'bg-rose-700'); btn.classList.replace('hover:bg-slate-600', 'hover:bg-rose-600');
-                    btn.classList.replace('border-slate-800', 'border-rose-900'); btn.classList.replace('text-slate-300', 'text-rose-100');
-                    btn.innerHTML = '<span>🤖</span> ｱｼｽﾄ:ON';
-                } else {
-                    btn.classList.replace('bg-rose-700', 'bg-slate-700'); btn.classList.replace('hover:bg-rose-600', 'hover:bg-slate-600');
-                    btn.classList.replace('border-rose-900', 'border-slate-800'); btn.classList.replace('text-rose-100', 'text-slate-300');
-                    btn.innerHTML = '<span>🤖</span> ｱｼｽﾄ:OFF';
-                }
-            });
-        }
-
-        function executeAutoBuy() {
-            if (!state.autoBuy) return;
-            let boughtSomething = false;
-            
-            for (let loop = 0; loop < 50; loop++) {
-                let bestIndex = -1; 
-                let bestEvalScore = Infinity; 
-
-                const estimatedIncomePerSec = Math.max(0.1, state.starsPerSecond + (state.starsPerClick * 2));
-
-                upgrades.forEach((u, i) => {
-                    const cost = calculateCost(u);
-                    const nextMult = getMultiplier(u.count + 1);
-                    const currentMult = getMultiplier(u.count);
-                    const effectIncrease = (u.effectValue * (u.count + 1) * nextMult) - (u.effectValue * u.count * currentMult);
-                    
-                    if (effectIncrease > 0) {
-                        const shortage = Math.max(0, cost - state.score);
-                        const timeToBuy = shortage / estimatedIncomePerSec;
-                        const paybackTime = cost / effectIncrease;
-                        const evalScore = timeToBuy + paybackTime;
-                        
-                        if (evalScore < bestEvalScore) { 
-                            bestEvalScore = evalScore; 
-                            bestIndex = i; 
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        // サイト全体のフォントを丸ゴシックに設定
+                        sans: ['"M PLUS Rounded 1c"', 'sans-serif'],
+                    },
+                    colors: {
+                        // 可愛いパステルカラーを定義
+                        pastel: {
+                            pink: '#ffb3c6',
+                            blue: '#a9def9',
+                            yellow: '#fcf6bd',
+                            green: '#d0f4de',
+                            purple: '#e4c1f9'
                         }
                     }
-                });
-
-                if (bestIndex !== -1) {
-                    const cost = calculateCost(upgrades[bestIndex]);
-                    if (state.score >= cost) {
-                        state.score -= cost; upgrades[bestIndex].count++; boughtSomething = true;
-                    } else break; 
-                } else break;
-            }
-
-            if (boughtSomething) {
-                recalculateStats(); updateDisplay(); checkAchievements();
-                upgrades.forEach((u, i) => {
-                    const countElem = document.getElementById(`upgrade-count-${i}`);
-                    if (countElem) countElem.innerText = u.count;
-                });
-            }
-        }
-
-        // --- ゲームループ ---
-        setInterval(() => {
-            if (state.starsPerSecond > 0) {
-                const gain = state.starsPerSecond / 10;
-                state.score += gain; state.lifetimeStars += gain; updateDisplay();
-            }
-            executeAutoBuy();
-        }, 100);
-
-        // --- セーブ＆ロード ---
-        const b64Str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-        const kanaStr = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをんがぎぐげござじずぜぞだぢづでどばびぶべー";
-        function encodeSpell() {
-            const saveData = {
-                s: Math.floor(state.score), u: upgrades.map(u => u.count), l: Math.floor(state.lifetimeStars),
-                p: state.prestigePoints, f: state.puFlags, a: state.achieveFlags, b: state.bonusClicks 
-            };
-            const b64 = btoa(JSON.stringify(saveData)); let spell = "";
-            for(let i=0; i<b64.length; i++) spell += kanaStr[b64Str.indexOf(b64[i])];
-            return spell.match(/.{1,10}/g).join(' ');
-        }
-        function decodeSpell(spell) {
-            try {
-                spell = spell.replace(/[\s　\n]/g, ""); let b64 = "";
-                for(let i=0; i<spell.length; i++) { const idx = kanaStr.indexOf(spell[i]); if(idx === -1) throw new Error("無効な文字"); b64 += b64Str[idx]; }
-                const sd = JSON.parse(atob(b64));
-                if (typeof sd.s === 'number' && Array.isArray(sd.u)) {
-                    state.score = sd.s; state.lifetimeStars = sd.l || sd.s; state.prestigePoints = sd.p || 0;
-                    state.puFlags = sd.f || 0; state.achieveFlags = sd.a || 0; state.bonusClicks = sd.b || 0;
-                    sd.u.forEach((count, i) => { if (upgrades[i] !== undefined) upgrades[i].count = count; });
-                    recalculateStats(); renderShop(); updateDisplay(); checkAchievements();
-                    return true;
                 }
-                return false;
-            } catch (e) { return false; }
+            }
         }
-
-        // --- 転生・その他UI ---
-        function calculatePendingPrestige() {
-            let spent = 0; prestigeUpgradesDef.forEach((pu, idx) => { if ((state.puFlags & (1 << idx)) !== 0) spent += pu.cost; });
-            return Math.max(0, Math.floor(Math.cbrt(state.lifetimeStars / 1000)) - state.prestigePoints - spent);
-        }
-        function openPrestigeModal() {
-            const pending = calculatePendingPrestige(); document.getElementById('pendingPrestigeDisplay').innerText = formatNumber(pending);
-            const btn = document.getElementById('doPrestigeBtn'), warn = document.getElementById('prestigeWarning');
-            if (pending <= 0) { warn.classList.remove('hidden'); btn.classList.add('opacity-50', 'cursor-not-allowed'); btn.disabled = true; } 
-            else { warn.classList.add('hidden'); btn.classList.remove('opacity-50', 'cursor-not-allowed'); btn.disabled = false; }
-            document.getElementById('prestigeModal').classList.remove('hidden');
-        }
-        function closePrestigeModal() { document.getElementById('prestigeModal').classList.add('hidden'); }
-        function doPrestige() {
-            const pending = calculatePendingPrestige(); if (pending <= 0) return;
-            state.prestigePoints += pending; state.score = 0; upgrades.forEach(u => u.count = 0); closePrestigeModal();
-            const overlay = document.createElement('div'); overlay.className = "fixed inset-0 bg-fuchsia-500 z-50 pointer-events-none transition-opacity duration-1000 opacity-100"; document.body.appendChild(overlay);
-            setTimeout(() => overlay.classList.replace('opacity-100', 'opacity-0'), 100); setTimeout(() => overlay.remove(), 1100);
-            recalculateStats(); renderShop(); updateDisplay();
-        }
-        function openPrestigeShopModal() {
-            const container = document.getElementById('prestigeShopContainer'); container.innerHTML = '';
-            document.getElementById('currentChiriDisplay').innerText = formatNumber(state.prestigePoints);
-            prestigeUpgradesDef.forEach((pu, index) => {
-                const isOwned = (state.puFlags & (1 << index)) !== 0; const canAfford = state.prestigePoints >= pu.cost;
-                const div = document.createElement('div'); div.className = `flex justify-between items-center p-3 rounded-lg border ${isOwned ? 'bg-fuchsia-900/40 border-fuchsia-500' : 'bg-slate-800 border-slate-600'}`;
-                div.innerHTML = `<div class="flex items-center gap-3"><div class="text-2xl shrink-0">${pu.icon}</div><div><div class="font-bold text-sm md:text-base ${isOwned ? 'text-fuchsia-300' : 'text-slate-200'}">${pu.name}</div><div class="text-[10px] md:text-xs text-slate-400">${pu.desc}</div></div></div><div class="shrink-0 ml-2">${isOwned ? '<span class="text-fuchsia-400 font-bold text-xs bg-fuchsia-900/50 px-2 py-1 rounded whitespace-nowrap">取得済</span>' : `<button onclick="buyPrestigeUpgrade(${index}, ${pu.cost})" class="px-3 py-2 rounded text-sm font-bold transition-colors whitespace-nowrap ${canAfford ? 'bg-fuchsia-700 hover:bg-fuchsia-600 text-white shadow-lg active:scale-95' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}" ${canAfford ? '' : 'disabled'}>${pu.cost} pt</button>`}</div>`;
-                container.appendChild(div);
-            });
-            document.getElementById('prestigeShopModal').classList.remove('hidden');
-        }
-        function buyPrestigeUpgrade(i, cost) { if (state.prestigePoints >= cost) { state.prestigePoints -= cost; state.puFlags |= (1 << i); recalculateStats(); openPrestigeShopModal(); renderShop(); updateDisplay(); } }
-
-        const sm = document.getElementById('spellModal'), si = document.getElementById('spellInput'), smsg = document.getElementById('spellMessage'), sab = document.getElementById('spellActionBtn'), scb = document.getElementById('spellCloseBtn');
-        function openSaveModal() { sm.classList.remove('hidden'); si.value = encodeSpell(); si.readOnly = true; smsg.innerText = "この じゅもんを かきとめるのじゃ！"; sab.innerText = "コピーする"; sab.onclick = () => { si.select(); document.execCommand('copy'); smsg.innerText = "コピーしたぞ！"; }; }
-        function openLoadModal() { sm.classList.remove('hidden'); si.value = ""; si.readOnly = false; smsg.innerText = "じゅもんを にゅうりょく してくれ。"; sab.innerText = "ふっかつする"; sab.onclick = () => { if (decodeSpell(si.value)) { sm.classList.add('hidden'); const ov = document.createElement('div'); ov.className = "fixed inset-0 bg-white z-50 pointer-events-none transition-opacity duration-500 opacity-100"; document.body.appendChild(ov); setTimeout(() => ov.classList.replace('opacity-100', 'opacity-0'), 50); setTimeout(() => ov.remove(), 550); } else { smsg.innerText = "じゅもんが ちがうぞ。"; } }; }
-        scb.onclick = () => sm.classList.add('hidden');
-
-        // --- 初期化 ---
-        renderShop(); recalculateStats(); updateDisplay();
-        scheduleNextBonus(); 
-
     </script>
+
+    <style>
+        /* ふんわりした水玉模様の背景 */
+        body {
+            background-color: #fff0f5; /* ほんのりピンクの背景色 */
+            background-image: radial-gradient(#ffccd5 3px, transparent 3px); /* 濃いめのピンクの水玉 */
+            background-size: 30px 30px; /* 水玉の間隔 */
+        }
+
+        /* カードがふわっと浮き上がるアニメーション */
+        .cute-card {
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); /* ぽよんと弾むような動き */
+        }
+        .cute-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 15px 30px rgba(255, 179, 198, 0.4);
+        }
+    </style>
+</head>
+<body class="text-gray-700 min-h-screen py-8 px-4 sm:py-12 sm:px-6 md:px-8">
+
+    <div class="max-w-5xl mx-auto">
+        <!-- サイトタイトル -->
+        <header class="text-center mb-8 sm:mb-12">
+            <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold text-pink-400 drop-shadow-sm mb-3 sm:mb-4">
+                🧸 わたしのゲームばこ 🧸
+            </h1>
+            <p class="text-gray-500 font-medium text-base sm:text-lg px-2">
+                つくったゲームをあつめました！あそんでみてね✨
+            </p>
+        </header>
+
+        <!-- ゲーム一覧 -->
+        <!-- スマホ(デフォルト)は1列、少し大きい画面(sm)で2列、PC(md以上)で3列になるように設定 -->
+        <main class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8">
+
+            <!-- 1つ目のゲーム：Star Clicker -->
+            <a href="starclicker.html" target="_blank" class="cute-card bg-white rounded-[2rem] p-5 shadow-lg border-4 border-yellow-100 block group">
+                <!-- サムネイル画像 -->
+                <div class="aspect-video bg-pastel-yellow rounded-2xl mb-4 overflow-hidden relative border-2 border-yellow-200">
+                    <img src="https://placehold.co/600x338/fcf6bd/555555?text=Star+Clicker" alt="Star Clicker" class="w-full h-full object-cover">
+                </div>
+                <!-- タイトルと説明 -->
+                <h2 class="text-lg sm:text-xl font-bold text-gray-800 mb-2 group-hover:text-yellow-500 transition-colors">
+                    ⭐ スタークリッカー
+                </h2>
+                <p class="text-gray-500 text-sm mb-4 leading-relaxed line-clamp-3">
+                    お星さまをたくさんクリックしてスコアを稼ごう！シンプルで楽しいクリッカーゲームだよ。
+                </p>
+                <!-- あそぶボタン -->
+                <div class="bg-yellow-50 text-yellow-500 font-bold text-center py-3 rounded-xl group-hover:bg-yellow-400 group-hover:text-white transition-colors shadow-sm">
+                    あそぶ 🐾
+                </div>
+            </a>
+
+            <!-- 2つ目のゲーム：マインスイーパー -->
+            <a href="minesweeper.html" target="_blank" class="cute-card bg-white rounded-[2rem] p-5 shadow-lg border-4 border-blue-100 block group">
+                <div class="aspect-video bg-pastel-blue rounded-2xl mb-4 overflow-hidden relative border-2 border-blue-200">
+                    <img src="https://placehold.co/600x338/a9def9/555555?text=Minesweeper" alt="マインスイーパー" class="w-full h-full object-cover">
+                </div>
+                <h2 class="text-lg sm:text-xl font-bold text-gray-800 mb-2 group-hover:text-blue-500 transition-colors">
+                    💣 マインスイーパー
+                </h2>
+                <p class="text-gray-500 text-sm mb-4 leading-relaxed line-clamp-3">
+                    爆弾を避けてすべてのマスを開けよう！頭をつかう定番のパズルゲーム。
+                </p>
+                <div class="bg-blue-50 text-blue-500 font-bold text-center py-3 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors shadow-sm">
+                    あそぶ 🐾
+                </div>
+            </a>
+
+            <!-- ゲームを増やしたい時は、上の <a href="..."> から </a> までをコピーしてここに貼り付けてください -->
+
+        </main>
+
+        <!-- フッター -->
+        <footer class="mt-16 text-center text-gray-400 text-sm font-medium">
+            <p>つくったひと：あなたのお名前</p>
+        </footer>
+    </div>
+
 </body>
 </html>
