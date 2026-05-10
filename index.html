@@ -3,114 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>わたしのゲームばこ</title>
-    
-    <!-- Google Fonts: M PLUS Rounded 1c (Cute rounded font) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
+    <title>ARCADE PORTAL</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        // サイト全体のフォントを丸ゴシックに設定
-                        sans: ['"M PLUS Rounded 1c"', 'sans-serif'],
-                    },
-                    colors: {
-                        // 可愛いパステルカラーを定義
-                        pastel: {
-                            pink: '#ffb3c6',
-                            blue: '#a9def9',
-                            yellow: '#fcf6bd',
-                            green: '#d0f4de',
-                            purple: '#e4c1f9'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-
     <style>
-        /* ふんわりした水玉模様の背景 */
         body {
-            background-color: #fff0f5; /* ほんのりピンクの背景色 */
-            background-image: radial-gradient(#ffccd5 3px, transparent 3px); /* 濃いめのピンクの水玉 */
-            background-size: 30px 30px; /* 水玉の間隔 */
+            background-color: #0f172a; /* slate-900ベース */
+            /* 宇宙やサイバー空間を思わせる暗いグラデーション背景 */
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, hsla(225,39%,30%,0.2) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(339,49%,30%,0.2) 0, transparent 50%);
+            color: #e2e8f0;
         }
 
-        /* カードがふわっと浮き上がるアニメーション */
-        .cute-card {
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); /* ぽよんと弾むような動き */
+        /* ゲーミング風のカードホバーエフェクト */
+        .game-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: linear-gradient(145deg, #1e293b, #0f172a);
         }
-        .cute-card:hover {
-            transform: translateY(-8px) scale(1.02);
-            box-shadow: 0 15px 30px rgba(255, 179, 198, 0.4);
+        
+        /* Star Clicker用のホバー色（黄色） */
+        .game-card.star:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(234, 179, 8, 0.3);
+            border-color: #facc15;
+        }
+
+        /* Minesweeper用のホバー色（シアン） */
+        .game-card.mine:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.3);
+            border-color: #22d3ee;
         }
     </style>
 </head>
-<body class="text-gray-700 min-h-screen py-8 px-4 sm:py-12 sm:px-6 md:px-8">
+<body class="min-h-screen py-8 px-4 sm:py-12 sm:px-6 md:px-8 font-sans">
 
     <div class="max-w-5xl mx-auto">
         <!-- サイトタイトル -->
-        <header class="text-center mb-8 sm:mb-12">
-            <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold text-pink-400 drop-shadow-sm mb-3 sm:mb-4">
-                🧸 わたしのゲームばこ 🧸
+        <header class="text-center mb-12 sm:mb-16">
+            <h1 class="text-4xl sm:text-5xl md:text-6xl font-black mb-4 tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-yellow-400 drop-shadow-lg">
+                ARCADE PORTAL
             </h1>
-            <p class="text-gray-500 font-medium text-base sm:text-lg px-2">
-                つくったゲームをあつめました！あそんでみてね✨
+            <p class="text-slate-400 font-bold text-sm sm:text-base tracking-widest uppercase">
+                Select Your Game
             </p>
         </header>
 
         <!-- ゲーム一覧 -->
-        <!-- スマホ(デフォルト)は1列、少し大きい画面(sm)で2列、PC(md以上)で3列になるように設定 -->
         <main class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8">
 
             <!-- 1つ目のゲーム：Star Clicker -->
-            <a href="starclicker.html" target="_blank" class="cute-card bg-white rounded-[2rem] p-5 shadow-lg border-4 border-yellow-100 block group">
-                <!-- サムネイル画像 -->
-                <div class="aspect-video bg-pastel-yellow rounded-2xl mb-4 overflow-hidden relative border-2 border-yellow-200">
-                    <img src="https://placehold.co/600x338/fcf6bd/555555?text=Star+Clicker" alt="Star Clicker" class="w-full h-full object-cover">
+            <a href="starclicker.html" target="_blank" class="game-card star rounded-2xl p-5 border border-slate-700 block group relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                
+                <!-- サムネイル画像（プレースホルダーもダークに合わせて色を変更） -->
+                <div class="aspect-video bg-slate-800 rounded-xl mb-4 overflow-hidden relative border border-slate-700 group-hover:border-yellow-500/50 transition-colors">
+                    <img src="https://placehold.co/600x338/1e293b/facc15?text=Star+Clicker" alt="Star Clicker" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity">
                 </div>
                 <!-- タイトルと説明 -->
-                <h2 class="text-lg sm:text-xl font-bold text-gray-800 mb-2 group-hover:text-yellow-500 transition-colors">
-                    ⭐ スタークリッカー
+                <h2 class="text-xl sm:text-2xl font-bold text-slate-200 mb-2 group-hover:text-yellow-400 transition-colors flex items-center gap-2">
+                    <span>⭐</span> Star Clicker
                 </h2>
-                <p class="text-gray-500 text-sm mb-4 leading-relaxed line-clamp-3">
-                    お星さまをたくさんクリックしてスコアを稼ごう！シンプルで楽しいクリッカーゲームだよ。
+                <p class="text-slate-400 text-sm mb-6 leading-relaxed line-clamp-3">
+                    宇宙の彼方でお星さまをクリックしてスコアを稼ごう！施設をアップグレードして宇宙をインフレさせるクリッカーゲーム。
                 </p>
                 <!-- あそぶボタン -->
-                <div class="bg-yellow-50 text-yellow-500 font-bold text-center py-3 rounded-xl group-hover:bg-yellow-400 group-hover:text-white transition-colors shadow-sm">
-                    あそぶ 🐾
+                <div class="bg-slate-800 text-yellow-500 border border-yellow-500/30 font-bold text-center py-3 rounded-xl group-hover:bg-yellow-500 group-hover:text-slate-900 transition-all tracking-widest uppercase text-sm">
+                    Play Now
                 </div>
             </a>
 
             <!-- 2つ目のゲーム：マインスイーパー -->
-            <a href="minesweeper.html" target="_blank" class="cute-card bg-white rounded-[2rem] p-5 shadow-lg border-4 border-blue-100 block group">
-                <div class="aspect-video bg-pastel-blue rounded-2xl mb-4 overflow-hidden relative border-2 border-blue-200">
-                    <img src="https://placehold.co/600x338/a9def9/555555?text=Minesweeper" alt="マインスイーパー" class="w-full h-full object-cover">
+            <a href="minesweeper.html" target="_blank" class="game-card mine rounded-2xl p-5 border border-slate-700 block group relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                
+                <div class="aspect-video bg-slate-800 rounded-xl mb-4 overflow-hidden relative border border-slate-700 group-hover:border-cyan-500/50 transition-colors">
+                    <img src="https://placehold.co/600x338/1e293b/22d3ee?text=Minesweeper" alt="マインスイーパー" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity">
                 </div>
-                <h2 class="text-lg sm:text-xl font-bold text-gray-800 mb-2 group-hover:text-blue-500 transition-colors">
-                    💣 マインスイーパー
+                <h2 class="text-xl sm:text-2xl font-bold text-slate-200 mb-2 group-hover:text-cyan-400 transition-colors flex items-center gap-2">
+                    <span>💣</span> Minesweeper
                 </h2>
-                <p class="text-gray-500 text-sm mb-4 leading-relaxed line-clamp-3">
-                    爆弾を避けてすべてのマスを開けよう！頭をつかう定番のパズルゲーム。
+                <p class="text-slate-400 text-sm mb-6 leading-relaxed line-clamp-3">
+                    論理と直感で地雷を回避せよ。サイバーパンクな雰囲気の美しいマインスイーパーで神の領域を目指せ。
                 </p>
-                <div class="bg-blue-50 text-blue-500 font-bold text-center py-3 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors shadow-sm">
-                    あそぶ 🐾
+                <div class="bg-slate-800 text-cyan-400 border border-cyan-400/30 font-bold text-center py-3 rounded-xl group-hover:bg-cyan-500 group-hover:text-slate-900 transition-all tracking-widest uppercase text-sm">
+                    Play Now
                 </div>
             </a>
-
-            <!-- ゲームを増やしたい時は、上の <a href="..."> から </a> までをコピーしてここに貼り付けてください -->
 
         </main>
 
         <!-- フッター -->
-        <footer class="mt-16 text-center text-gray-400 text-sm font-medium">
-            <p>つくったひと：あなたのお名前</p>
+        <footer class="mt-20 text-center text-slate-600 text-xs font-bold tracking-widest uppercase">
+            <p>Created by You</p>
         </footer>
     </div>
 
