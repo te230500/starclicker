@@ -71,8 +71,8 @@
             スタークリッカー
         </h1>
         
-        <!-- 動的バフ通知エリア -->
-        <div id="buffContainer" class="min-h-[28px] my-1 z-10 flex flex-col gap-1 items-center shrink-0"></div>
+        <!-- 動的バフ通知エリア (バフが複数並んでもいいように flex-wrap を追加) -->
+        <div id="buffContainer" class="min-h-[28px] my-1 z-10 flex flex-wrap gap-1 justify-center items-center shrink-0"></div>
         
         <div class="text-center w-full relative z-10 shrink-0 my-auto">
             <div class="text-4xl md:text-5xl lg:text-6xl font-bold text-yellow-400 break-words drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] leading-tight" id="scoreDisplay">0</div>
@@ -450,7 +450,7 @@
             document.getElementById('achieveModal').classList.remove('hidden');
         }
 
-        // --- ボーナス星 ---
+        // --- ボーナス星 (ゴールデンクッキー) ---
         let bonusTimeoutId;
         let hideBonusTimeoutId;
         let isBonusClickable = false;
@@ -461,6 +461,12 @@
             const hasFastBonus = (state.puFlags & (1 << 3)) !== 0; 
             let delay = (Math.random() * 75 + 45) * 1000;
             if (hasFastBonus) delay /= 2;
+            
+            // ★ 出現頻度アップデート: 15%の確率で「連鎖状態」になり、3〜10秒ですぐに次の星が出る
+            if (Math.random() < 0.15) {
+                delay = (Math.random() * 7 + 3) * 1000;
+            }
+            
             bonusTimeoutId = setTimeout(spawnBonusStar, delay);
         }
 
@@ -482,37 +488,51 @@
             setTimeout(() => { star.classList.add('hidden'); if (scheduleNext) scheduleNextBonus(); }, 300);
         }
 
-        let activeBuffs = {}; 
-        function activateBuff(type, mult, durationSec, text, colorClass, bgClass) {
-            if (activeBuffs[type]) {
-                clearTimeout(activeBuffs[type].timerId);
-                const oldElem = document.getElementById(`buff-${type}`);
-                if (oldElem) oldElem.remove();
-            }
+        // ★ 動的バフの配列管理 (重複スタック対応)
+        let activeBuffs = []; 
 
-            state[`${type}Buff`] = mult;
+        function recalculateBuffs() {
+            // 一旦リセットして、有効なすべてのバフを掛け合わせる（重複対応）
+            state.spsBuff = 1;
+            state.clickBuff = 1;
+            state.discountBuff = 1;
+            
+            activeBuffs.forEach(buff => {
+                if (buff.type === 'sps') state.spsBuff *= buff.mult;
+                if (buff.type === 'click') state.clickBuff *= buff.mult;
+                if (buff.type === 'discount') state.discountBuff *= buff.mult;
+            });
+            
             recalculateStats();
             updateDisplay();
+        }
+
+        function activateBuff(type, mult, durationSec, text, colorClass, bgClass) {
+            const id = Date.now() + Math.random();
+            const durationMs = durationSec * 1000;
             
             if (bgClass) document.getElementById('gameBody').classList.add(bgClass);
 
             const container = document.getElementById('buffContainer');
             const buffElem = document.createElement('div');
-            buffElem.id = `buff-${type}`;
-            buffElem.className = `px-3 py-1 rounded-full border border-slate-500 font-bold text-xs md:text-sm shadow-lg ${colorClass} bg-slate-900/90 animate-pulse`;
-            buffElem.innerText = text;
+            buffElem.id = `buff-${id}`;
+            // 複数並んでも崩れないように whitespace-nowrap を追加し、秒数も表示
+            buffElem.className = `px-3 py-1 rounded-full border border-slate-500 font-bold text-xs md:text-sm shadow-lg ${colorClass} bg-slate-900/90 animate-pulse whitespace-nowrap`;
+            buffElem.innerText = `${text} (${Math.floor(durationSec)}秒)`;
             container.appendChild(buffElem);
 
-            const timerId = setTimeout(() => {
-                state[`${type}Buff`] = 1;
-                recalculateStats();
-                updateDisplay();
-                if (bgClass) document.getElementById('gameBody').classList.remove(bgClass);
-                buffElem.remove();
-                delete activeBuffs[type];
-            }, durationSec * 1000);
+            activeBuffs.push({ id, type, mult, bgClass, elem: buffElem });
+            recalculateBuffs();
 
-            activeBuffs[type] = { timerId };
+            setTimeout(() => {
+                activeBuffs = activeBuffs.filter(b => b.id !== id);
+                buffElem.remove();
+                // 同じ背景変更を伴うバフがすべて消えたら背景を元に戻す
+                if (bgClass && !activeBuffs.some(b => b.bgClass === bgClass)) {
+                    document.getElementById('gameBody').classList.remove(bgClass);
+                }
+                recalculateBuffs();
+            }, durationMs);
         }
 
         function clickBonusStar(e) {
@@ -525,20 +545,27 @@
             state.bonusClicks++;
             checkAchievements();
 
+            // pu9(不屈の精神)の効果
             const durationMult = (state.puFlags & (1 << 9)) !== 0 ? 1.5 : 1;
+            
+            // ★ 持続時間のランダム化 (ベースの1.0〜2.0倍、さらに10%の確率で3倍の「大当たり」)
+            let timeVariance = 1.0 + Math.random();
+            if (Math.random() < 0.10) timeVariance *= 3;
+            
             const rand = Math.random();
             
             if (rand < 0.40) {
+                // ラッキースター (現在のSPSを基準にするため、バフ重複中に引くと莫大なスターが手に入る)
                 const gain = Math.max(100, state.starsPerSecond * 120);
                 state.score += gain; state.lifetimeStars += gain;
                 createParticle(e.clientX, e.clientY, `ラッキースター! +${formatNumber(gain)}`, '#f472b6'); 
                 updateDisplay();
             } else if (rand < 0.70) {
-                activateBuff('sps', 7, 13 * durationMult, '🌟 スターシャワー発動中！ (自動生産 x7)', 'text-fuchsia-400', 'fever-bg');
+                activateBuff('sps', 7, 13 * durationMult * timeVariance, '🌟 スターシャワー (生産x7)', 'text-fuchsia-400', 'fever-bg');
             } else if (rand < 0.85) {
-                activateBuff('click', 777, 13 * durationMult, '☄️ メテオストライク！ (クリック x777)', 'text-red-400', 'meteor-bg');
+                activateBuff('click', 777, 13 * durationMult * timeVariance, '☄️ メテオストライク (クリックx777)', 'text-red-400', 'meteor-bg');
             } else if (rand < 0.95) {
-                activateBuff('discount', 0.5, 30 * durationMult, '🛒 バーゲンセール！ (コスト半額)', 'text-emerald-400', 'bargain-bg');
+                activateBuff('discount', 0.5, 30 * durationMult * timeVariance, '🛒 バーゲンセール (コスト半額)', 'text-emerald-400', 'bargain-bg');
             } else {
                 const gain = Math.max(1000, state.starsPerSecond * 600);
                 state.score += gain; state.lifetimeStars += gain;
